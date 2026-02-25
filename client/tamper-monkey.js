@@ -10,34 +10,25 @@
 // ==/UserScript==
 
 // TODO: use navigation api to respond to youtube page changes: https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API
-// TODO: add singular function to call 'checkTime' and clear timeout ids so only one is running
-// TODO: add 'onplay' listener to respond to user playing video, keep timeout as fallback
 
 const host = 'http://127.0.0.1:50300';
 let checks = 1;
+let timeoutId = 0;
 let lastId = '';
 
 (function() {
   'use strict';
-  checkTime().catch(console.log);
+  singularCallCheckTime(25);
 
   async function checkTime() {
-    const id = grabVideoId();
+    const url = new URL(window.location.href);
+    const id= url.searchParams.get('v');
     const video = document.querySelector('video');
 
     if (id && video) {
       if (lastId !== id) {
-        lastId = id;
-        // first time!
-        const time = await getTimeFromServer(id);
-        log('the time is ' + time);
-        video.onplaying = () => {
-          log('attempting to set time to ' + time);
-          video.currentTime = +time;
-          video.onplaying = null;
-          video.pause();
-        }
-
+        await firstLoad(id, video);
+        return;
       }
 
       const currentTime = Math.floor(video.currentTime);
@@ -45,14 +36,34 @@ let lastId = '';
 
       if (!video.paused) {
         checks = 1;
-        setTimeout(checkTime, 1000);
+        singularCallCheckTime(1000);
         showPlayerControls(false);
         return
       }
     }
 
-    setTimeout(checkTime, Math.min(30, 2 * checks++) * 1000);
+    singularCallCheckTime(Math.min(30, 2 * checks++) * 1000);
     showPlayerControls(true);
+  }
+
+  /**
+   *
+   * @param {string} id
+   * @param {object} video
+   */
+  async function firstLoad(id, video) {
+    lastId = id;
+    // first time!
+    const time = await getTimeFromServer(id);
+    log('the time is ' + time);
+    video.onplaying = () => {
+      log('attempting to set time to ' + time);
+      video.pause();
+      video.currentTime = +time;
+      video.onplaying = null;
+      singularCallCheckTime(1000);
+      showPlayerControls(true);
+    }
   }
 
   /**
@@ -85,11 +96,11 @@ let lastId = '';
 
   /**
    *
-   * @returns {string | null}
+   * @param {number} timeout
    */
-  function grabVideoId() {
-    const url = new URL(window.location.href);
-    return url.searchParams.get('v');
+  function singularCallCheckTime(timeout) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => checkTime().catch(log), timeout);
   }
 
   /**

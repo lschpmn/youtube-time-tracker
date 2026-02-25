@@ -1,6 +1,7 @@
-import express from 'express';
 import cors from 'cors';
+import express from 'express';
 import { createServer as createHttpServer } from 'http';
+import db from './lib/db';
 import { getCommandLineArguments, log } from './lib/utils';
 
 const { PORT } = getCommandLineArguments();
@@ -19,13 +20,22 @@ app.use((req, res, next) => {
 });
 
 app.get('/api/time/:id', (req, res) => {
-  res.status(200).send('38');
+  const id = req.params.id;
+  const time = db.getTime(id);
+  log(`get video id: ${id} - time(s): ${time}`);
+
+  res.status(200).send(time);
 });
 
 app.post('/api/time/:id', (req, res) => {
-  console.log(req.body);
+  const id = req.params.id;
+  const time = req.body.time;
+  if (time) {
+    log(`set video id: ${id} - time(s): ${time}`)
+    db.setTime(id, +req.body.time);
+  }
 
-  res.status(200).send('good job!');
+  res.status(200).send();
 });
 
 app.use((err, req, res, next) => {

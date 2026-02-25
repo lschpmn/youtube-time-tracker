@@ -13,8 +13,10 @@
 
 const host = 'http://127.0.0.1:50300';
 let checks = 1;
+let firstLoadDone = false;
 let timeoutId = 0;
 let lastId = '';
+let globalVideo;
 
 (function() {
   'use strict';
@@ -27,7 +29,18 @@ let lastId = '';
 
     if (id && video) {
       if (lastId !== id) {
+        window.video = globalVideo = video;
         await firstLoad(id, video);
+        singularCallCheckTime(500);
+        return;
+      }
+
+      if (!firstLoadDone) {
+        if (globalVideo !== video) {
+          window.video = globalVideo = video;
+          await firstLoad(id, video);
+        }
+        singularCallCheckTime(500);
         return;
       }
 
@@ -56,14 +69,23 @@ let lastId = '';
     // first time!
     const time = await getTimeFromServer(id);
     log('the time is ' + time);
-    video.onplaying = () => {
+    const onPlaying = () => {
+      firstLoadDone = true;
       log('attempting to set time to ' + time);
       video.pause();
-      video.currentTime = +time;
+      if (time) {
+        video.currentTime = +time;
+      }
       video.onplaying = null;
+      video.removeEventListener('timeupdate', onPlaying);
       singularCallCheckTime(1000);
       showPlayerControls(true);
     }
+    video.addEventListener('timeupdate', onPlaying);
+
+    video.addEventListener('play', () => {
+      singularCallCheckTime(25);
+    });
   }
 
   /**
@@ -119,6 +141,10 @@ let lastId = '';
 
     }
   }
+
+  navigation.addEventListener("navigate", () => {
+    singularCallCheckTime(25);
+  });
 
 })();
 

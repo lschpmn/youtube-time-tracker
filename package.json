@@ -12,7 +12,9 @@
     "cors": "2.8.6",
     "dayjs": "1.11.19",
     "express": "5.2.1",
+    "fs-jetpack": "5.1.0",
     "get-incremental-port": "gist:5566749d5222db411f51c4414171b17d",
+    "lodash": "4.17.23",
     "nodemon": "3.1.14"
   },
   "devDependencies": {

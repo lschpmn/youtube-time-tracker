@@ -9,6 +9,10 @@
 // @grant        none
 // ==/UserScript==
 
+// TODO: use navigation api to respond to youtube page changes: https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API
+// TODO: add singular function to call 'checkTime' and clear timeout ids so only one is running
+// TODO: add 'onplay' listener to respond to user playing video, keep timeout as fallback
+
 const host = 'http://127.0.0.1:50300';
 let checks = 1;
 let lastId = '';

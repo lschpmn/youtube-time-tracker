@@ -9,13 +9,14 @@
 // @grant        none
 // ==/UserScript==
 
-// TODO: use navigation api to respond to youtube page changes: https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API
+// TODO:
 
 const host = 'http://127.0.0.1:50300';
 let checks = 1;
 let firstLoadDone = false;
 let timeoutId = 0;
 let lastId = '';
+let lastTimeSent = -1;
 let globalVideo;
 
 (function() {
@@ -74,7 +75,7 @@ let globalVideo;
       log('attempting to set time to ' + time);
       video.pause();
       if (time) {
-        video.currentTime = +time;
+        video.currentTime = time;
       }
       video.onplaying = null;
       video.removeEventListener('timeupdate', onPlaying);
@@ -91,12 +92,13 @@ let globalVideo;
   /**
    *
    * @param {string} id
-   * @returns {Promise<string>}
+   * @returns {Promise<number>}
    */
   async function getTimeFromServer(id) {
     const response = await fetch(`${host}/api/time/${id}`);
+    const time = await response.text();
 
-    return await response.text();
+    return lastTimeSent = +time;
   }
 
   /**
@@ -106,8 +108,10 @@ let globalVideo;
    */
   async function sendTimeToServer(id, time) {
     log(`current time: ${time}`);
+    if (time === lastTimeSent) return;
+    lastTimeSent = time;
 
-    const response = await fetch(`${host}/api/time/${id}`, {
+    await fetch(`${host}/api/time/${id}`, {
       method: 'POST',
       body: `{ "time": ${time} }`,
       headers: {

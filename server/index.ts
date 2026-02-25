@@ -22,7 +22,7 @@ app.use((req, res, next) => {
 app.get('/api/time/:id', (req, res) => {
   const id = req.params.id;
   const time = db.getTime(id);
-  log(`get video id: ${id} - time(s): ${time}`);
+  log(`get video id: ${id} - time(sec): ${time}`);
 
   res.status(200).send(time);
 });
@@ -31,7 +31,7 @@ app.post('/api/time/:id', (req, res) => {
   const id = req.params.id;
   const time = req.body.time;
   if (time) {
-    log(`set video id: ${id} - time(s): ${time}`)
+    log(`set video id: ${id} - time(sec): ${time}`);
     db.setTime(id, +req.body.time);
   }
 

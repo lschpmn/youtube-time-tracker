@@ -20,6 +20,11 @@ class DB {
     }
   }
 
+  deleteTime = (id: string) => {
+    delete this.data.videoTimes[id];
+    this.save();
+  };
+
   getTime = (id: string) => this.data.videoTimes[id]?.time;
 
   setTime = (id: string, time: number) => {

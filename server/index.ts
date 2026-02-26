@@ -38,6 +38,13 @@ app.post('/api/time/:id', (req, res) => {
   res.status(200).send();
 });
 
+app.delete('/api/time/:id', (req, res) => {
+  const id = req.params.id;
+  log(`delete video id: ${id}`);
+  db.deleteTime(id);
+  res.status(200).send();
+});
+
 app.use((err, req, res, next) => {
   log(err);
   log(err.stack);

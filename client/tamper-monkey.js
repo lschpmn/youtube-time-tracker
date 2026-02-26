@@ -9,44 +9,40 @@
 // @grant        none
 // ==/UserScript==
 
-// TODO:
+// TODO: see when video ends and send delete command to server
 
 const host = 'http://127.0.0.1:50300';
+let canContinue = false;
 let checks = 1;
-let firstLoadDone = false;
-let timeoutId = 0;
 let lastId = '';
 let lastTimeSent = -1;
 let globalVideo;
 
-(function() {
+(function () {
   'use strict';
   singularCallCheckTime(25);
 
   async function checkTime() {
     const url = new URL(window.location.href);
-    const id= url.searchParams.get('v');
+    const id = url.searchParams.get('v');
     const video = document.querySelector('video');
 
     if (id && video) {
       if (lastId !== id) {
-        window.video = globalVideo = video;
-        await firstLoad(id, video);
-        singularCallCheckTime(500);
-        return;
+        await firstLoad(id);
       }
 
-      if (!firstLoadDone) {
-        if (globalVideo !== video) {
-          window.video = globalVideo = video;
-          await firstLoad(id, video);
-        }
-        singularCallCheckTime(500);
-        return;
-      }
+      if (!canContinue) return;
 
       const currentTime = Math.floor(video.currentTime);
       await sendTimeToServer(id, currentTime);
+
+      if (globalVideo !== video) {
+        globalVideo = video;
+        video.addEventListener('play', () => {
+          singularCallCheckTime(25);
+        });
+      }
 
       if (!video.paused) {
         checks = 1;
@@ -62,31 +58,23 @@ let globalVideo;
 
   /**
    *
-   * @param {string} id
-   * @param {object} video
+   * @param {String} id
+   * @returns {Promise<void>}
    */
-  async function firstLoad(id, video) {
+  async function firstLoad(id) {
     lastId = id;
-    // first time!
     const time = await getTimeFromServer(id);
-    log('the time is ' + time);
-    const onPlaying = () => {
-      firstLoadDone = true;
-      log('attempting to set time to ' + time);
-      video.pause();
-      if (time) {
-        video.currentTime = time;
-      }
-      video.onplaying = null;
-      video.removeEventListener('timeupdate', onPlaying);
-      singularCallCheckTime(1000);
-      showPlayerControls(true);
-    }
-    video.addEventListener('timeupdate', onPlaying);
+    const url = new URL(window.location.href);
+    const timeStr = url.searchParams.get('t');
+    const videoTime = +timeStr?.slice(0, -1);
 
-    video.addEventListener('play', () => {
-      singularCallCheckTime(25);
-    });
+    log(`server time: ${time}, video time: ${videoTime}`);
+    if (!!time && time !== videoTime) {
+      url.searchParams.set('t', `${time}s`);
+      window.location.href = url.href;
+    } else {
+      canContinue = true;
+    }
   }
 
   /**
@@ -125,8 +113,8 @@ let globalVideo;
    * @param {number} timeout
    */
   function singularCallCheckTime(timeout) {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => checkTime().catch(log), timeout);
+    clearTimeout(window._timeoutId);
+    window._timeoutId = setTimeout(() => checkTime().catch(log), timeout);
   }
 
   /**

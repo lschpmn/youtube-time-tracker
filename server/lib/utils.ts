@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { Request } from 'express';
 
 const PROD_PORT = 50305;
 
@@ -13,5 +14,14 @@ export const getCommandLineArguments = (): { PORT: number, DEVELOP: boolean } =>
   };
 };
 
-export const log = (message: string) =>
-  console.log(`${dayjs().format('hh:mm:ss.SSSA ddd MM/DD/YY')} - ${message}`);
+export const log = (message: string, req: Request = null) => {
+  const timeStr = dayjs().format('hh:mm:ss.SSSA ddd MM/DD/YY');
+  let requestStr = '';
+
+  if (req) {
+    const ip = (req.header('x-real-ip') || req.ip).replace('::ffff:', '');
+    requestStr = `- ip:${ip} - url:${req.url}`;
+  }
+
+  console.log(`${timeStr} ${requestStr} - ${message}`);
+}

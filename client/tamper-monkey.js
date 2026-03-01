@@ -10,6 +10,8 @@
 // ==/UserScript==
 
 // TODO: see when video ends and send delete command to server
+// TODO: better error handling so failed calls aren't spammed
+// TODO: probably add alert if calls fail
 
 const host = 'http://127.0.0.1:50300';
 let canContinue = false;
@@ -96,7 +98,7 @@ let globalVideo;
    */
   async function sendTimeToServer(id, time) {
     log(`current time: ${time}`);
-    if (time === lastTimeSent) return;
+    if (time === lastTimeSent || !time) return;
     lastTimeSent = time;
 
     await fetch(`${host}/api/time/${id}`, {

@@ -14,19 +14,19 @@
 // TODO: probably add alert if calls fail
 
 const host = 'http://127.0.0.1:50300';
-let canContinue = false;
 let checks = 1;
 let lastId = '';
 let lastTimeSent = -1;
 let globalVideo;
+let stop = false;
 
 (function () {
   'use strict';
   singularCallCheckTime(25);
 
   async function checkTime() {
-    const url = new URL(window.location.href);
-    const id = url.searchParams.get('v');
+    if (stop) return;
+    const id = getVideoId();
     const video = document.querySelector('video');
 
     if (id && video) {
@@ -34,7 +34,7 @@ let globalVideo;
         await firstLoad(id);
       }
 
-      if (!canContinue) return;
+      if (lastId !== id) return;
 
       const currentTime = Math.floor(video.currentTime);
       await sendTimeToServer(id, currentTime);
@@ -64,7 +64,6 @@ let globalVideo;
    * @returns {Promise<void>}
    */
   async function firstLoad(id) {
-    lastId = id;
     const time = await getTimeFromServer(id);
     const url = new URL(window.location.href);
     const timeStr = url.searchParams.get('t');
@@ -74,8 +73,9 @@ let globalVideo;
     if (!!time && time !== videoTime) {
       url.searchParams.set('t', `${time}s`);
       window.location.href = url.href;
+      stop = true;
     } else {
-      canContinue = true;
+      lastId = id;
     }
   }
 
@@ -141,6 +141,14 @@ let globalVideo;
   });
 
 })();
+
+/**
+ *  @returns {string}
+ */
+function getVideoId() {
+  const url = new URL(window.location.href);
+  return url.searchParams.get('v');
+}
 
 function log(message) {
   console.log('see me, ' + message);

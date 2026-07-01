@@ -67,7 +67,7 @@ let stop = false;
     const time = await getTimeFromServer(id);
     const url = new URL(window.location.href);
     const timeStr = url.searchParams.get('t');
-    const videoTime = +timeStr?.slice(0, -1);
+    const videoTime = +timeStr?.slice(0, -1) || 0;
 
     log(`server time: ${time}, video time: ${videoTime}`);
     if (!!time && Math.abs(time - videoTime) > 5) {

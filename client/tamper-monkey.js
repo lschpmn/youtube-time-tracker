@@ -70,7 +70,7 @@ let stop = false;
     const videoTime = +timeStr?.slice(0, -1);
 
     log(`server time: ${time}, video time: ${videoTime}`);
-    if (!!time && time !== videoTime) {
+    if (!!time && Math.abs(time - videoTime) > 5) {
       url.searchParams.set('t', `${time}s`);
       window.location.href = url.href;
       stop = true;

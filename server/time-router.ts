@@ -33,11 +33,12 @@ router.post('/time/:id', (req, res) => {
 });
 
 router.post('/times', (req, res) => {
-  const ids = req.body;
-  console.log(ids);
-  console.log(ids.length);
+  const ids: string[] = req.body;
+  log('got ids ' + JSON.stringify(ids))
+  const returnIds = ids.filter(id => !!db.getTime(id));
+  log('sending back ids: ' + JSON.stringify(returnIds));
 
-  res.status(200).send();
+  res.status(200).send(returnIds);
 });
 
 export default router;

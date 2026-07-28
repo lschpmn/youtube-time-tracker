@@ -13,6 +13,8 @@
 // TODO: better error handling so failed calls aren't spammed
 // TODO: probably add alert if calls fail
 
+import { getVideoId, log } from './utils';
+
 const host = 'http://127.0.0.1:50300';
 let checks = 1;
 let lastId = '';
@@ -119,11 +121,3 @@ let stopIt = false;
 
 })();
 
-function getVideoId(): string {
-  const url = new URL(window.location.href);
-  return url.searchParams.get('v');
-}
-
-function log(message: string) {
-  console.log('see me, ' + message);
-}

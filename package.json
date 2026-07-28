@@ -15,6 +15,7 @@
     "fs-jetpack": "5.1.0",
     "get-incremental-port": "gist:5566749d5222db411f51c4414171b17d",
     "lodash": "4.17.23",
+    "typescript": "5.9.3",
     "nodemon": "3.1.14"
   },
   "devDependencies": {

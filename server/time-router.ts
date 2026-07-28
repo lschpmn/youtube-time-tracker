@@ -32,4 +32,12 @@ router.post('/time/:id', (req, res) => {
   res.status(200).send();
 });
 
+router.post('/times', (req, res) => {
+  const ids = req.body;
+  console.log(ids);
+  console.log(ids.length);
+
+  res.status(200).send();
+});
+
 export default router;

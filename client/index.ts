@@ -18,14 +18,14 @@ let checks = 1;
 let lastId = '';
 let lastTimeSent = -1;
 let globalVideo;
-let stop = false;
+let stopIt = false;
 
 (function () {
   'use strict';
   singularCallCheckTime(25);
 
   async function checkTime() {
-    if (stop) return;
+    if (stopIt) return;
     const id = getVideoId();
     const video = document.querySelector('video');
 
@@ -73,7 +73,7 @@ let stop = false;
     if (!!time && Math.abs(time - videoTime) > 5) {
       url.searchParams.set('t', `${time}s`);
       window.location.href = url.href;
-      stop = true;
+      stopIt = true;
     } else {
       lastId = id;
     }

@@ -17,7 +17,7 @@ const host = 'http://127.0.0.1:50300';
 let checks = 1;
 let lastId = '';
 let lastTimeSent = -1;
-let globalVideo;
+let globalVideo: HTMLVideoElement | null;
 let stopIt = false;
 
 (function () {
@@ -58,12 +58,7 @@ let stopIt = false;
     showPlayerControls(true);
   }
 
-  /**
-   *
-   * @param {String} id
-   * @returns {Promise<void>}
-   */
-  async function firstLoad(id) {
+  async function firstLoad(id: string): Promise<void> {
     const time = await getTimeFromServer(id);
     const url = new URL(window.location.href);
     const timeStr = url.searchParams.get('t');
@@ -79,24 +74,14 @@ let stopIt = false;
     }
   }
 
-  /**
-   *
-   * @param {string} id
-   * @returns {Promise<number>}
-   */
-  async function getTimeFromServer(id) {
+  async function getTimeFromServer(id: string): Promise<number> {
     const response = await fetch(`${host}/api/time/${id}`);
     const time = await response.text();
 
     return lastTimeSent = +time;
   }
 
-  /**
-   *
-   * @param {string} id
-   * @param {number} time
-   */
-  async function sendTimeToServer(id, time) {
+  async function sendTimeToServer(id: string, time: number): Promise<void> {
     log(`current time: ${time}`);
     if (time === lastTimeSent || !time) return;
     lastTimeSent = time;
@@ -110,20 +95,12 @@ let stopIt = false;
     });
   }
 
-  /**
-   *
-   * @param {number} timeout
-   */
-  function singularCallCheckTime(timeout) {
+  function singularCallCheckTime(timeout: number) {
     clearTimeout(window._timeoutId);
     window._timeoutId = setTimeout(() => checkTime().catch(log), timeout);
   }
 
-  /**
-   *
-   * @param {Boolean} show
-   */
-  function showPlayerControls(show) {
+  function showPlayerControls(show: boolean) {
     const elem = document.querySelector('.ytp-chrome-bottom');
     log('has element ' + !!elem)
     if (elem) {
@@ -142,14 +119,11 @@ let stopIt = false;
 
 })();
 
-/**
- *  @returns {string}
- */
-function getVideoId() {
+function getVideoId(): string {
   const url = new URL(window.location.href);
   return url.searchParams.get('v');
 }
 
-function log(message) {
+function log(message: string) {
   console.log('see me, ' + message);
 }

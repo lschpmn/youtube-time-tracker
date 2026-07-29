@@ -1,18 +1,30 @@
 import { getWatchedVideos } from './endpoints';
 
 declare global {
-  // Note the capital "W"
   interface Window { timeout: NodeJS.Timeout | null; }
 }
 
 
 window.timeout = null;
+let previousLength: number;
+let newLength: number;
 
-export function start(waitTime: number = 2000) {
+export function start(waitTime: number = 1000) {
   if (window.timeout) clearTimeout(window.timeout);
   window.timeout = setTimeout(async () => {
     await hideWatchedVideos();
-    start(Math.min(waitTime + 1000, 30 * 1000));
+
+    let newWaitTime: number;
+
+    if (previousLength === newLength) {
+      newWaitTime = waitTime + 1000;
+    } else {
+      newWaitTime = 1000;
+    }
+
+    previousLength = newLength;
+
+    start(Math.min(newWaitTime, 30 * 1000));
   }, waitTime);
 }
 
@@ -38,16 +50,19 @@ function getVideoIdMap(): { string: Element } {
       ...document.getElementsByTagName('yt-lockup-view-model'),
   ];
 
+  newLength = videoElements.length;
+
   for (let videoElement of videoElements) {
     const link = Array(...videoElement.getElementsByTagName('a'))
       .find(e => !!e.href)?.href;
     if (!link) continue;
-    const url = new URL(link);
-    map[url.searchParams.get('v')] = videoElement;
 
     if (link.includes('t=')) {
       // @ts-ignore
       videoElement.style.display = 'none';
+    } else {
+      const url = new URL(link);
+      map[url.searchParams.get('v')] = videoElement;
     }
   }
 

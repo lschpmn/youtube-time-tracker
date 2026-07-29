@@ -12,6 +12,7 @@
 // TODO: see when video ends and send delete command to server
 // TODO: better error handling so failed calls aren't spammed
 // TODO: probably add alert if calls fail
+// TODO: when doing a get for time, set the video ID, before sending any time, re-check the video ID
 
 import { start } from './hide-watched-videos';
 import { getVideoId, log } from './utils';

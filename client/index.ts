@@ -9,15 +9,14 @@
 // @grant        none
 // ==/UserScript==
 
-// TODO: see when video ends and send delete command to server
 // TODO: better error handling so failed calls aren't spammed
 // TODO: probably add alert if calls fail
 // TODO: when doing a get for time, set the video ID, before sending any time, re-check the video ID
 
+import { getTime, postTime } from './endpoints';
 import { start } from './hide-watched-videos';
 import { getVideoId, log } from './utils';
 
-const host = 'http://127.0.0.1:50300';
 let checks = 1;
 let lastId = '';
 let lastTimeSent = -1;
@@ -64,7 +63,7 @@ let stopIt = false;
   }
 
   async function firstLoad(id: string): Promise<void> {
-    const time = await getTimeFromServer(id);
+    const time = lastTimeSent = await getTime(id);
     const url = new URL(window.location.href);
     const timeStr = url.searchParams.get('t');
     const videoTime = +timeStr?.slice(0, -1) || 0;
@@ -79,25 +78,12 @@ let stopIt = false;
     }
   }
 
-  async function getTimeFromServer(id: string): Promise<number> {
-    const response = await fetch(`${host}/api/time/${id}`);
-    const time = await response.text();
-
-    return lastTimeSent = +time;
-  }
-
   async function sendTimeToServer(id: string, time: number): Promise<void> {
     log(`current time: ${time}`);
     if (time === lastTimeSent || !time) return;
     lastTimeSent = time;
 
-    await fetch(`${host}/api/time/${id}`, {
-      method: 'POST',
-      body: `{ "time": ${time} }`,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    await postTime(id, time);
   }
 
   function singularCallCheckTime(timeout: number) {

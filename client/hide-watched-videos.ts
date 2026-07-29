@@ -1,7 +1,10 @@
 import { getWatchedVideos } from './endpoints';
 
 declare global {
-  interface Window { timeout: NodeJS.Timeout | null; }
+  interface Window {
+    _timeoutId: NodeJS.Timeout | null;
+    timeout: NodeJS.Timeout | null;
+  }
 }
 
 

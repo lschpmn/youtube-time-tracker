@@ -12,6 +12,7 @@
 // TODO: better error handling so failed calls aren't spammed
 // TODO: probably add alert if calls fail
 // TODO: when doing a get for time, set the video ID, before sending any time, re-check the video ID
+// TODO: Send a time of 1 second for new videos, just to enter them into the system
 
 import { getTime, postTime } from './endpoints';
 import { start } from './hide-watched-videos';

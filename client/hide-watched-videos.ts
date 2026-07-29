@@ -48,10 +48,11 @@ async function hideWatchedVideos() {
 
 function getVideoIdMap(): { string: Element } {
   const map = {} as { string: Element };
-  const videoElements = [
-      ...document.getElementsByTagName('ytd-rich-item-renderer'),
-      ...document.getElementsByTagName('yt-lockup-view-model'),
-  ];
+  let videoElements = [...document.getElementsByTagName('ytd-rich-item-renderer')];
+
+  if (!videoElements.length) {
+    videoElements = [...document.getElementsByTagName('yt-lockup-view-model')];
+  }
 
   newLength = videoElements.length;
 

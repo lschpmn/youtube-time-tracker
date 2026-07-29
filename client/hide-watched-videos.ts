@@ -1,20 +1,24 @@
-import { clearTimeout } from 'node:timers';
 import { getWatchedVideos } from './endpoints';
 
+declare global {
+  // Note the capital "W"
+  interface Window { timeout: NodeJS.Timeout | null; }
+}
 
-let timeout: NodeJS.Timeout | null;
 
-export function start() {
-  if (timeout) clearTimeout(timeout);
-  timeout = setTimeout(async () => {
+window.timeout = null;
+
+export function start(waitTime: number = 2000) {
+  if (window.timeout) clearTimeout(window.timeout);
+  window.timeout = setTimeout(async () => {
     await hideWatchedVideos();
-    start();
-  }, 5000);
+    start(Math.min(waitTime + 1000, 30 * 1000));
+  }, waitTime);
 }
 
 export function stop() {
-  clearTimeout(timeout);
-  timeout = null;
+  clearTimeout(window.timeout);
+  window.timeout = null;
 }
 
 async function hideWatchedVideos() {
@@ -23,7 +27,7 @@ async function hideWatchedVideos() {
 
   for (let videoId of watchedVideoIds) {
     // @ts-ignore
-    videoMap[videoId]?.style?.display = 'none';
+    videoMap[videoId].style.display = 'none';
   }
 }
 

@@ -13,6 +13,7 @@
 // TODO: better error handling so failed calls aren't spammed
 // TODO: probably add alert if calls fail
 
+import { start } from './hide-watched-videos';
 import { getVideoId, log } from './utils';
 
 const host = 'http://127.0.0.1:50300';
@@ -25,6 +26,7 @@ let stopIt = false;
 (function () {
   'use strict';
   singularCallCheckTime(25);
+  start();
 
   async function checkTime() {
     if (stopIt) return;

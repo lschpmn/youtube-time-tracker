@@ -1,22 +1,14 @@
-// TODO: disable on history page and search page
-
 import { getWatchedVideos } from './endpoints';
 
-declare global {
-  interface Window {
-    _timeoutId: NodeJS.Timeout | null;
-    timeout: NodeJS.Timeout | null;
-  }
-}
+let timeout = null;
+let previousLength: number = 0;
+let newLength: number = 0;
 
-
-window.timeout = null;
-let previousLength: number;
-let newLength: number;
+// Public
 
 export function start(waitTime: number = 1000) {
-  if (window.timeout) clearTimeout(window.timeout);
-  window.timeout = setTimeout(async () => {
+  if (timeout) clearTimeout(timeout);
+  timeout = setTimeout(async () => {
     await hideWatchedVideos();
 
     let newWaitTime: number;
@@ -29,22 +21,25 @@ export function start(waitTime: number = 1000) {
 
     previousLength = newLength;
 
-    start(Math.min(newWaitTime, 30 * 1000));
+    start(Math.min(newWaitTime, 20 * 1000));
   }, waitTime);
 }
 
 export function stop() {
-  clearTimeout(window.timeout);
-  window.timeout = null;
+  clearTimeout(timeout);
+  timeout = null;
 }
 
+// Private
+
 async function hideWatchedVideos() {
+  if (isForbiddenPage()) return;
   const videoMap = getVideoIdMap();
   const watchedVideoIds = await getWatchedVideos(Object.keys(videoMap));
 
   for (let videoId of watchedVideoIds) {
     // @ts-ignore
-    videoMap[videoId].style.display = 'none';
+    videoMap[videoId].remove();
   }
 }
 
@@ -56,6 +51,10 @@ function getVideoIdMap(): { string: Element } {
     videoElements = [...document.getElementsByTagName('yt-lockup-view-model')];
   }
 
+  if (!videoElements.length) {
+    videoElements = [...document.getElementsByTagName('ytm-video-with-context-renderer')];
+  }
+
   newLength = videoElements.length;
 
   for (let videoElement of videoElements) {
@@ -65,7 +64,7 @@ function getVideoIdMap(): { string: Element } {
 
     if (link.includes('t=')) {
       // @ts-ignore
-      videoElement.style.display = 'none';
+      videoElement.remove();
     } else {
       const url = new URL(link);
       map[url.searchParams.get('v')] = videoElement;
@@ -73,4 +72,11 @@ function getVideoIdMap(): { string: Element } {
   }
 
   return map;
+}
+
+// Util
+
+function isForbiddenPage(): boolean {
+  const forbiddenUrls = ['/feed/history', 'results?search_query'];
+  return forbiddenUrls.some(u => window.location.href.includes(u))
 }

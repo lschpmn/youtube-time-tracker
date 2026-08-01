@@ -1,3 +1,5 @@
+// TODO: disable on history page and search page
+
 import { getWatchedVideos } from './endpoints';
 
 declare global {

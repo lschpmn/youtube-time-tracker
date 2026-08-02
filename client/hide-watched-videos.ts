@@ -1,5 +1,7 @@
 import { getWatchedVideos } from './endpoints';
 
+
+const forbiddenUrls = ['/feed/history', 'results?search_query'];
 let timeout = null;
 let previousLength: number = 0;
 let newLength: number = 0;
@@ -33,13 +35,13 @@ export function stop() {
 // Private
 
 async function hideWatchedVideos() {
-  if (isForbiddenPage()) return;
+  if (forbiddenUrls.some(u => window.location.href.includes(u))) return;
   const videoMap = getVideoIdMap();
   const watchedVideoIds = await getWatchedVideos(Object.keys(videoMap));
 
   for (let videoId of watchedVideoIds) {
     // @ts-ignore
-    videoMap[videoId].remove();
+    hideElement(videoMap[videoId]);
   }
 }
 
@@ -64,7 +66,7 @@ function getVideoIdMap(): { string: Element } {
 
     if (link.includes('t=')) {
       // @ts-ignore
-      videoElement.remove();
+      hideElement(videoElement);
     } else {
       const url = new URL(link);
       map[url.searchParams.get('v')] = videoElement;
@@ -76,7 +78,6 @@ function getVideoIdMap(): { string: Element } {
 
 // Util
 
-function isForbiddenPage(): boolean {
-  const forbiddenUrls = ['/feed/history', 'results?search_query'];
-  return forbiddenUrls.some(u => window.location.href.includes(u))
+function hideElement(element: HTMLElement) {
+  element.style.display = 'none';
 }

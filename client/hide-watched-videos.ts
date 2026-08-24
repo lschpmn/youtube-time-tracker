@@ -1,7 +1,7 @@
 import { getWatchedVideos } from './endpoints';
 
 
-const forbiddenUrls = ['/feed/history', 'results?search_query'];
+const forbiddenUrls = ['/feed/history', '/results'];
 let timeout = null;
 let previousLength: number = 0;
 let newLength: number = 0;

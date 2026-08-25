@@ -1,0 +1,2 @@
+
+type ActionTypes = 'get' | 'set';

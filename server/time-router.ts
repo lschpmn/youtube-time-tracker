@@ -1,6 +1,34 @@
 import { Router } from 'express';
+import { Socket } from 'socket.io';
 import db from './lib/db';
 import { log } from './lib/utils';
+
+
+export function timeRouterSocketConnection(socket: Socket) {
+  socket.on('action', (actionType: ActionTypes, ...args) => {
+    switch (actionType) {
+      case 'get':
+        getTime(args[0], args[1]);
+        break;
+      case 'set':
+        setTime(args[0], args[1]);
+        break;
+    }
+  });
+}
+
+function getTime(id: string, callback: (time: number) => void) {
+  const time = db.getTime(id);
+  log(`getTime for ${id}, time(sec) ${time}`);
+  callback(time);
+}
+
+function setTime(id: string, time: number) {
+  log(`setTime ${id}, time(sec) ${time}`);
+  db.setTime(id, time);
+}
+
+// Old Router
 
 const router = Router();
 

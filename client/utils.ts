@@ -5,7 +5,7 @@ let lastVideoTime = 0;
 
 export function getVideo(): HTMLVideoElement {
   const now = Date.now();
-  if (now - lastVideoTime < 250) return lastVideo;
+  if (now - lastVideoTime < 100) return lastVideo;
 
   lastVideoTime = now;
   return lastVideo = document.querySelector('video');

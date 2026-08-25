@@ -1,14 +1,3 @@
-// ==UserScript==
-// @name         Add time to my server
-// @namespace    http://tampermonkey.net/
-// @version      2024-06-21
-// @description  try to take over the world!
-// @author       You
-// @match        https://*.youtube.com/*
-// @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
-// @grant        none
-// ==/UserScript==
-
 // TODO: better error handling so failed calls aren't spammed
 // TODO: probably add alert if calls fail
 // TODO: when doing a get for time, set the video ID, before sending any time, re-check the video ID
@@ -16,103 +5,15 @@
 // TODO: Use websocket to connect videos for real time updates
 // TODO: Put percent of currently watched video into title
 
-import { getTime, postTime } from './endpoints';
 import { start } from './hide-watched-videos';
-import { getVideoId, log } from './utils';
-
-let checks = 1;
-let lastId = '';
-let lastTimeSent = -1;
-let globalVideo: HTMLVideoElement | null;
-let stopIt = false;
+import videoTimeManagement from './video-time-management';
 
 (function () {
   'use strict';
-  singularCallCheckTime(25);
   start();
 
-  async function checkTime() {
-    if (stopIt) return;
-    const id = getVideoId();
-    const video = document.querySelector('video');
-
-    if (id && video) {
-      if (lastId !== id) {
-        await firstLoad(id);
-      }
-
-      if (lastId !== id) return;
-
-      const currentTime = Math.floor(video.currentTime);
-      await sendTimeToServer(id, currentTime);
-
-      if (globalVideo !== video) {
-        globalVideo = video;
-        video.addEventListener('play', () => {
-          singularCallCheckTime(25);
-        });
-      }
-
-      if (!video.paused) {
-        checks = 1;
-        singularCallCheckTime(1000);
-        showPlayerControls(false);
-        return
-      }
-    }
-
-    singularCallCheckTime(Math.min(30, 2 * checks++) * 1000);
-    showPlayerControls(true);
-  }
-
-  async function firstLoad(id: string): Promise<void> {
-    const time = lastTimeSent = await getTime(id);
-    const url = new URL(window.location.href);
-    const timeStr = url.searchParams.get('t');
-    const videoTime = +timeStr?.slice(0, -1) || 0;
-
-    log(`server time: ${time}, video time: ${videoTime}`);
-    if (!!time && Math.abs(time - videoTime) > 5) {
-      url.searchParams.set('t', `${time}s`);
-      window.location.href = url.href;
-      stopIt = true;
-    } else {
-      lastId = id;
-    }
-
-    if (!time) {
-      await sendTimeToServer(id, 1);
-    }
-  }
-
-  async function sendTimeToServer(id: string, time: number): Promise<void> {
-    log(`current time: ${time}`);
-    if (time === lastTimeSent || !time) return;
-    lastTimeSent = time;
-
-    await postTime(id, time);
-  }
-
-  function singularCallCheckTime(timeout: number) {
-    clearTimeout(window._timeoutId);
-    window._timeoutId = setTimeout(() => checkTime().catch(log), timeout);
-  }
-
-  function showPlayerControls(show: boolean) {
-    const elem = document.querySelector('.ytp-chrome-bottom');
-    log('has element ' + !!elem)
-    if (elem) {
-      if (show) {
-        document.querySelector('.ytp-chrome-bottom').style.opacity = '1';
-      } else {
-        document.querySelector('.ytp-chrome-bottom').style.removeProperty('opacity');
-      }
-
-    }
-  }
-
-  navigation.addEventListener("navigate", () => {
-    singularCallCheckTime(25);
+  navigation.addEventListener('navigate', () => {
+    videoTimeManagement.watch(25);
   });
 
 })();

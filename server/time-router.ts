@@ -5,15 +5,12 @@ import { log } from './lib/utils';
 
 
 export function timeRouterSocketConnection(socket: Socket) {
-  socket.on('action', (actionType: ActionTypes, ...args) => {
-    switch (actionType) {
-      case 'get':
-        getTime(args[0], args[1]);
-        break;
-      case 'set':
-        setTime(args[0], args[1]);
-        break;
-    }
+  socket.on('get' as ActionTypes, (id: string, callback: (t: number) => void) => {
+    getTime(id, callback);
+  });
+
+  socket.on('set' as ActionTypes, (id: string, time: number) => {
+    setTime(id, time);
   });
 }
 

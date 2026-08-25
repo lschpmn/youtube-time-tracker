@@ -4,14 +4,14 @@ class VideoTimeManagement {
   timeout: NodeJS.Timeout = null
 
   constructor() {
-    this.watch();
+    this.watch(1000);
   }
 
-  private watch() {
+  private watch(time: number) {
     clearTimeout(this.timeout);
     this.timeout = setTimeout(() => {
       console.log('f')
-    }, 1000);
+    }, time);
   }
 
 }

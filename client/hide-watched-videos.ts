@@ -1,5 +1,6 @@
-import { getWatchedVideos } from './endpoints';
+// TODO: Make the scroll event reset the time for checking watched videos
 
+import { getWatchedVideos } from './endpoints';
 
 const forbiddenUrls = ['/feed/history', '/results'];
 let timeout = null;

@@ -3,12 +3,13 @@ import { getVideo, getVideoId, log, showPlayerControls } from './utils';
 
 class VideoTimeManagement {
   firstLoad: boolean = true;
+  lastTime: number = -1;
   video: HTMLVideoElement;
   videoId: string | null = null;
   timeout: NodeJS.Timeout = null;
 
   constructor() {
-    this.watch(5);
+    this.watch(1);
   }
 
   watch(time: number) {
@@ -35,7 +36,27 @@ class VideoTimeManagement {
 
     if (video !== this.video) {
       this.video = video;
-      video.onplay = () => this.firstLoadCall();
+
+      video.addEventListener('pause', () => {
+        console.log('paused');
+        showPlayerControls(true);
+        if (!this.firstLoad) return;
+
+        if (video.currentTime === this.lastTime // return load
+          || (video.currentTime === 0.0125 && this.lastTime === 1)) { // first load
+          this.firstLoad = false;
+        } else {
+          this.firstLoadCall().catch(console.log);
+        }
+      });
+
+      video.addEventListener('play', () => this.firstLoad && video.pause());
+
+      video.addEventListener('timeupdate', () => {
+        console.log('time update');
+        if (this.firstLoad) video.pause();
+        else this.regularCall();
+      });
     }
   }
 
@@ -51,13 +72,12 @@ class VideoTimeManagement {
     const time = await getTime(this.videoId);
 
     if (time) {
-      this.video.currentTime = time;
+      log(`setting time to ${time}`);
+      this.lastTime = time;
+      this.video.currentTime = time === 1 ? 0.0125 : time; // prevent accidental autoplay
     } else {
       setTime(this.videoId, 1);
     }
-
-    this.firstLoad = false;
-    this.watch(1000);
   }
 
   private regularCall() {
@@ -73,15 +93,19 @@ class VideoTimeManagement {
       return;
     }
 
-    if (video.currentTime > 5 && !video.paused) {
+    if (video !== this.video) {
+      this.findVideo();
+      return;
+    }
+
+    if (!video.paused && Math.abs(this.lastTime - video.currentTime) > 1) {
+      this.lastTime = video.currentTime;
       log('video playing, recording time');
       setTime(videoId, video.currentTime);
     }
 
     if (video.paused) showPlayerControls(true);
     else showPlayerControls(false);
-
-    this.watch(1000);
   }
 
 }

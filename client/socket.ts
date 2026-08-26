@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5001');
+const socket = io('http://127.0.0.1:50300');
 
 export async function getTime(id: string): Promise<number> {
   return socket.emitWithAck('get' as ActionTypes, id);

@@ -1,14 +1,7 @@
 
 
-let lastVideo: HTMLVideoElement;
-let lastVideoTime = 0;
-
 export function getVideo(): HTMLVideoElement {
-  const now = Date.now();
-  if (now - lastVideoTime < 100) return lastVideo;
-
-  lastVideoTime = now;
-  return lastVideo = document.querySelector('video');
+  return document.querySelector('video');
 }
 
 export function getVideoId(): string {
@@ -18,4 +11,18 @@ export function getVideoId(): string {
 
 export function log(message: string) {
   console.log('see me, ' + message);
+}
+
+export function showPlayerControls(show: boolean) {
+  const elem = document.querySelector('.ytp-chrome-bottom');
+  if (elem) {
+    if (show) {
+      // @ts-ignore
+      document.querySelector('.ytp-chrome-bottom').style.opacity = '1';
+    } else {
+      // @ts-ignore
+      document.querySelector('.ytp-chrome-bottom').style.removeProperty('opacity');
+    }
+
+  }
 }

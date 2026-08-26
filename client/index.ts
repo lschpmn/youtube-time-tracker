@@ -12,6 +12,7 @@ import videoTimeManagement from './video-time-management';
   'use strict';
   start();
 
+  // @ts-ignore
   navigation.addEventListener('navigate', () => {
     videoTimeManagement.watch(25);
   });

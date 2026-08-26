@@ -57,7 +57,7 @@ let stopIt = false;
         checks = 1;
         singularCallCheckTime(1000);
         showPlayerControls(false);
-        return
+        return;
       }
     }
 
@@ -99,8 +99,9 @@ let stopIt = false;
   }
 
   function showPlayerControls(show: boolean) {
+    log(`showPlayerControl: ${show}`);
     const elem = document.querySelector('.ytp-chrome-bottom');
-    log('has element ' + !!elem)
+    log('has element ' + !!elem);
     if (elem) {
       if (show) {
         document.querySelector('.ytp-chrome-bottom').style.opacity = '1';
@@ -111,7 +112,7 @@ let stopIt = false;
     }
   }
 
-  navigation.addEventListener("navigate", () => {
+  navigation.addEventListener('navigate', () => {
     singularCallCheckTime(25);
   });
 

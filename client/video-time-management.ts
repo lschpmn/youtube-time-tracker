@@ -1,12 +1,9 @@
-// TODO: Change approach
-// TODO: Every time on load, check video and if new attach event to play
-// TODO: In play event is where it should auto pause and forward to proper video place
-
 import { getTime, setTime } from './socket';
 import { getVideo, getVideoId, log, showPlayerControls } from './utils';
 
 class VideoTimeManagement {
-  firstLoad: number = 10;
+  firstLoad: boolean = true;
+  video: HTMLVideoElement;
   videoId: string | null = null;
   timeout: NodeJS.Timeout = null;
 
@@ -19,41 +16,48 @@ class VideoTimeManagement {
     clearTimeout(this.timeout);
     this.timeout = setTimeout(() => {
 
-      if (this.firstLoad) this.firstLoadCall().catch(console.error);
+      if (this.firstLoad) this.findVideo();
       else this.regularCall();
 
     }, time);
   }
 
-  private async firstLoadCall() {
-    log('first call');
-    this.videoId = getVideoId();
+  private findVideo() {
     const video = getVideo();
-    log(`has video? ${!!video}`);
+    const videoId = getVideoId();
 
-    if (!video) return;
-    video.pause();
-    video.onplay = function() {
-      video.pause();
-    };
+    if (!videoId) return;
 
-    const time = await getTime(this.videoId);
-    this.firstLoad--;
-
-    if (time) {
-      video.currentTime = time;
-    } else {
-      setTime(this.videoId, 1);
-    }
-
-    if (isNaN(video.duration)) {
-      this.firstLoad = 10;
+    if (!video) {
       this.watch(100);
       return;
     }
 
-    if (this.firstLoad > 0) this.watch(50);
-    else this.watch(1000);
+    if (video !== this.video) {
+      this.video = video;
+      video.onplay = () => this.firstLoadCall();
+    }
+  }
+
+  private async firstLoadCall() {
+    log('first call');
+    const videoId = getVideoId();
+
+    if (videoId === this.videoId && !this.firstLoad) return;
+
+    this.videoId = videoId;
+    this.video.pause();
+
+    const time = await getTime(this.videoId);
+
+    if (time) {
+      this.video.currentTime = time;
+    } else {
+      setTime(this.videoId, 1);
+    }
+
+    this.firstLoad = false;
+    this.watch(1000);
   }
 
   private regularCall() {
@@ -62,8 +66,9 @@ class VideoTimeManagement {
     const videoId = getVideoId();
 
     if (videoId !== this.videoId) {
-      this.firstLoad = 10;
       log('video id is different');
+      this.firstLoad = true;
+      video.pause();
       this.watch(25);
       return;
     }

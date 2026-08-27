@@ -5,15 +5,26 @@
 // TODO: Put percent of currently watched video into title
 
 import { start } from './hide-watched-videos';
+import { getVideoId } from './utils';
 import videoTimeManagement from './video-time-management';
 
 (function () {
   'use strict';
   start();
+  videoTimeManagement.watch(1);
+
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('t')) {
+    url.searchParams.delete('t');
+    window.location.href = url.href;
+  }
+
+  const videoId = getVideoId();
 
   // @ts-ignore
   navigation.addEventListener('navigate', () => {
-    videoTimeManagement.watch(25);
+    const newVideoId = getVideoId();
+    if (newVideoId !== videoId) window.location.reload();
   });
 
 })();

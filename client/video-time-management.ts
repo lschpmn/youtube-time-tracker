@@ -1,8 +1,24 @@
-import { getTime, setTime } from './socket';
+// TODO: grab video time on load, and use the pause response for setting that time
+// TODO: have something going every second that should make sure video saved is the right one (for mobile)
+// TODO: this can also attempt to set the proper time over and over until the pause event confirms it's set
+// TODO: also maybe disable video playback until interacted with (on click or space bar pressed)
+// TODO: set times should go into some kind of queue so multiple can't pile up,
+// TODO: maybe only have current and next, and delete next if a new "next" comes.
+
+// more ideas now
+// TODO: regular watcher can have 'paused' and 'playing' modes
+// TODO: for paused, it checks every 5 seconds with time on server, and updates video time if there's a difference
+// TODO: for playing, it just records the video time
+
+// TODO: block playing until interaction
+
+import { throttle } from 'lodash';
+import { getTime, postTime } from './endpoints';
 import { getVideo, getVideoId, log, showPlayerControls } from './utils';
 
 class VideoTimeManagement {
   firstLoad: boolean = true;
+  grabVideoTime: () => Promise<number>;
   lastTime: number = -1;
   video: HTMLVideoElement;
   videoId: string | null = null;
@@ -17,95 +33,109 @@ class VideoTimeManagement {
     clearTimeout(this.timeout);
     this.timeout = setTimeout(() => {
 
-      if (this.firstLoad) this.findVideo();
-      else this.regularCall();
+      this.repeatingCall();
 
     }, time);
   }
 
-  private findVideo() {
+  private repeatingCall() {
+    log('repeatingCall')
     const video = getVideo();
     const videoId = getVideoId();
 
     if (!videoId) return;
 
-    if (!video) {
-      this.watch(100);
-      return;
+    if (videoId !== this.videoId) {
+      this.videoId = videoId;
+      this.firstLoad = true;
+      this.lastTime = -1;
+      this.grabVideoTime = throttle(async () => getTime(videoId),
+                              5000, { leading: true, trailing: false });
     }
 
     if (video !== this.video) {
-      this.video = video;
-
-      video.addEventListener('pause', () => {
-        console.log('paused');
-        showPlayerControls(true);
-        if (!this.firstLoad) return;
-
-        if (video.currentTime === this.lastTime // return load
-          || (video.currentTime === 0.0125 && this.lastTime === 1)) { // first load
-          this.firstLoad = false;
-        } else {
-          this.firstLoadCall().catch(console.log);
-        }
-      });
-
-      video.addEventListener('play', () => this.firstLoad && video.pause());
-
-      video.addEventListener('timeupdate', () => {
-        console.log('time update');
-        if (this.firstLoad) video.pause();
-        else this.regularCall();
-      });
+      this.attachToVideo();
     }
+
+    if (this.firstLoad) this.firstCall().catch(console.log);
+    else this.regularCalll();
   }
 
-  private async firstLoadCall() {
-    log('first call');
-    const videoId = getVideoId();
+  // attaches to all necessary video events
+  private attachToVideo() {
+    log('attachToVideo')
+    const video = getVideo();
+    if (!video) return this.watch(33);
+    if (video === this.video) return;
 
-    if (videoId === this.videoId && !this.firstLoad) return;
-
-    this.videoId = videoId;
+    this.video = video;
     this.video.pause();
 
-    const time = await getTime(this.videoId);
+    const pauseIt = () => {
+      if (this.firstLoad) this.video.pause();
+    };
+
+    // for mobile, the paused view that goes away
+    // also happens on click :(
+    this.video.addEventListener('blur', () => {
+      log('blur')
+      this.attachToVideo();
+    });
+
+    this.video.addEventListener('timeupdate', () => {
+      pauseIt();
+      if (!this.firstLoad) this.regularCalll();
+    });
+
+    this.video.addEventListener('play', () => {
+      showPlayerControls(false);
+      if (this.video.currentTime === this.lastTime) {
+        this.firstLoad = false;
+      } else {
+        pauseIt();
+      }
+
+    });
+
+    this.video.addEventListener('pause', () => {
+      log('paused');
+      showPlayerControls(true);
+      if (!this.firstLoad) return;
+    });
+  }
+
+  // use to set server time, it should have the functionality described in the TODOs, with current and next calls
+  private serverSetTime() {
+  }
+
+  // should grab server time
+  // grabbed server time should be saved
+  private async firstCall() {
+    log('firstCall')
+    this.video.pause();
+    const time = await this.grabVideoTime();
 
     if (time) {
       log(`setting time to ${time}`);
-      this.lastTime = time;
-      this.video.currentTime = time === 1 ? 0.0125 : time; // prevent accidental autoplay
+      this.lastTime = time === 1 ? 0.0125 : time;
+      this.video.currentTime = time === 1 ? 0.0125 : time;
     } else {
-      setTime(this.videoId, 1);
+      postTime(this.videoId, 1).catch(console.log);
     }
+
+    this.watch(1000);
   }
 
-  private regularCall() {
-    log('regular call');
-    const video = getVideo();
-    const videoId = getVideoId();
-
-    if (videoId !== this.videoId) {
-      log('video id is different');
-      this.firstLoad = true;
-      video.pause();
-      this.watch(25);
-      return;
-    }
-
-    if (video !== this.video) {
-      this.findVideo();
-      return;
-    }
-
-    if (!video.paused && Math.abs(this.lastTime - video.currentTime) > 1) {
-      this.lastTime = video.currentTime;
+  private regularCalll() {
+    log('regularCall')
+    if (!this.video.paused && Math.abs(this.lastTime - this.video.currentTime) > 1.1) {
+      this.lastTime = this.video.currentTime;
       log('video playing, recording time');
-      setTime(videoId, video.currentTime);
+      postTime(this.videoId, this.video.currentTime).catch(console.log);
+      this.watch(1500);
+    } else {
+      this.watch(5000);
     }
-
-    if (video.paused) showPlayerControls(true);
-    else showPlayerControls(false);
   }
 
 }

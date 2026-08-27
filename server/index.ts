@@ -1,26 +1,13 @@
 import cors from 'cors';
 import express from 'express';
 import { createServer as createHttpServer } from 'http';
-import { Server } from 'socket.io';
 import { getCommandLineArguments, log } from './lib/utils';
-import timeRouter, { timeRouterSocketConnection } from './time-router';
+import timeRouter from './time-router';
 
 const { PORT } = getCommandLineArguments();
 
 const app = express();
 const server = createHttpServer(app);
-
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-
-io.on('connection', socket => {
-  log('connection!')
-  timeRouterSocketConnection(socket);
-});
 
 app.use(cors());
 app.use(express.json());

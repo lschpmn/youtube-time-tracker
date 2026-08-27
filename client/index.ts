@@ -2,7 +2,6 @@
 // TODO: probably add alert if calls fail
 // TODO: when doing a get for time, set the video ID, before sending any time, re-check the video ID
 // TODO: Only upload time when video is playing
-// TODO: Use websocket to connect videos for real time updates
 // TODO: Put percent of currently watched video into title
 
 import { start } from './hide-watched-videos';

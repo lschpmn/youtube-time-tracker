@@ -1,31 +1,6 @@
 import { Router } from 'express';
-import { Socket } from 'socket.io';
 import db from './lib/db';
 import { log } from './lib/utils';
-
-
-export function timeRouterSocketConnection(socket: Socket) {
-  socket.on('get', (id: string, callback: (t: number) => void) => {
-    getTime(id, callback);
-  });
-
-  socket.on('set', (id: string, time: number) => {
-    setTime(id, time);
-  });
-}
-
-function getTime(id: string, callback: (time: number) => void) {
-  const time = db.getTime(id);
-  log(`getTime for ${id}, time(sec) ${time}`);
-  callback(time);
-}
-
-function setTime(id: string, time: number) {
-  log(`setTime ${id}, time(sec) ${time}`);
-  db.setTime(id, time);
-}
-
-// Old Router
 
 const router = Router();
 

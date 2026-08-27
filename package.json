@@ -16,7 +16,6 @@
     "get-incremental-port": "gist:5566749d5222db411f51c4414171b17d",
     "lodash": "4.17.23",
     "nodemon": "3.1.14",
-    "socket.io": "4.8.3",
     "typescript": "5.9.3"
   },
   "devDependencies": {
@@ -29,10 +28,10 @@
     "@babel/preset-typescript": "7.28.5",
     "@babel/runtime": "7.28.6",
     "@types/express": "5.0.6",
+    "@types/lodash": "4.17.25",
     "@types/node": "25.3.0",
     "babel-core": "6.26.3",
     "babel-loader": "10.1.1",
-    "socket.io-client": "4.8.3",
     "ts-loader": "9.5.4",
     "ts-node": "10.9.2",
     "webpack": "5.109.2",

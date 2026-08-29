@@ -1,4 +1,5 @@
 // TODO: Make the scroll event reset the time for checking watched videos
+// TODO: Move to class
 
 import { getWatchedVideos } from './endpoints';
 

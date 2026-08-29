@@ -8,22 +8,24 @@
 
 // TODO: use player: https://developers.google.com/youtube/iframe_api_reference#Playback_status
 
+// TODO: rework things so more happens in onStateChange event
+
 import { throttle } from 'lodash';
 import { getTime, postTime } from './endpoints';
-import { getVideo, getVideoId, log, showPlayerControls } from './utils';
+import { MediaPlayer } from './types';
+import { getPlayer, getVideo, getVideoId, log, showPlayerControls } from './utils';
 
 class VideoTimeManagement {
   grabVideoTime: () => Promise<number>;
+  pushVideoTime: (time: number) => Promise<void>;
   isMobile: boolean;
   lastTime: number = -1;
-  video: HTMLVideoElement;
+  player: MediaPlayer;
   videoId: string | null = null;
   timeout: NodeJS.Timeout = null;
 
   ready: boolean = false;
-  _timeReadyPause: boolean = false;
-  _timeReadyPlay: boolean = false;
-  _timeReadyUpdate: boolean = false;
+  _timeReady: boolean = false;
   _didInteract: boolean = false;
 
   constructor() {
@@ -32,7 +34,6 @@ class VideoTimeManagement {
     };
 
     this.isMobile = window.location.href.includes('m.youtube');
-    log(`hey is this mobile? ${this.isMobile}`);
   }
 
   watch(time: number) {
@@ -47,7 +48,7 @@ class VideoTimeManagement {
 
   private repeatingCall() {
     log('repeatingCall');
-    const video = getVideo();
+    const player = getPlayer();
     const videoId = getVideoId();
 
     if (!videoId) return;
@@ -57,75 +58,68 @@ class VideoTimeManagement {
       this.reset();
     }
 
-    if (video !== this.video) {
-      this.attachToVideo();
+    if (player !== this.player) {
+      this.attachToPlayer();
     }
 
     if (!this.ready) this.firstCall().catch(console.log);
     else this.regularCall();
   }
 
-  private attachToVideo() {
+  private attachToPlayer() {
     log('attachToVideo');
-    const video = getVideo();
-    if (!video) return this.watch(33);
-    if (video === this.video) return;
+    const player = getPlayer();
+    if (!player) return this.watch(33);
+    if (player === this.player) return;
 
-    this.video = video;
-    this.video.click();
+    this.player = player;
     if (this.lastTime === -1) this.pauseIt();
 
-    const timeSetting = (theTitle) => Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this.video, theTitle);
-    const timeGetting = () => Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').get.call(this.video);
-
-    // Override the setter for document.title to prevent further changes
-    Object.defineProperty(this.video, 'currentTime', {
-      get: function() {
-        return timeGetting();
-      },
-      set: (newTitle) => {
-        console.log(newTitle, 'this');
-        if (this.ready || +newTitle == this.lastTime) {
-          timeSetting(newTitle);
-          log('setting this time')
-        }
-      }
-    });
-
-
-
-    // for mobile, the paused view that goes away
+    /*// for mobile, the paused view that goes away
     // also happens on click :(
-    this.video.addEventListener('blur', () => this.attachToVideo());
+    this.player.addEventListener('blur', () => this.attachToPlayer());*/
 
-    this.video.addEventListener('click', () => this._didInteract = true);
+    getVideo()?.addEventListener('click', () => this._didInteract = true);
 
-    this.video.addEventListener('seeked', (e) => console.log('seeked', e.target.currentTime));
-    this.video.addEventListener('seeking', (e) => console.log('seeking', e.target.currentTime));
+    this.player.addEventListener('onStateChange', (state: number) => {
+      const currentTime = this.player.getCurrentTime();
 
-    this.video.addEventListener('timeupdate', (event) => {
-      const targetVideo = event.target as HTMLVideoElement
-      log(`currentTime update: ${targetVideo.currentTime}`);
-      this._timeReadyUpdate = this.checkTime(video, false);
+      if (currentTime === this.lastTime && [1, 2, 3].includes(state)) {
+        this._timeReady = true;
+        this.pauseIt();
+      } else if (state !== 2 && !this.ready) {
+        this.pauseIt();
+        this.player.seekTo(this.lastTime, true);
+        this.watch(50);
+      }
+
+      console.log('onStateChange', state, this.player.getCurrentTime());
+
+      showPlayerControls(state !== 1);
+
+
+    });
+
+    /*this.player.addEventListener('timeupdate', () => {
+      log(`currentTime update: ${player.getCurrentTime()}`);
+      this._timeReadyUpdate = this.checkTime(false);
 
       this.pauseIt();
     });
 
-    this.video.addEventListener('play', (event) => {
+    this.player.addEventListener('play', () => {
       showPlayerControls(false);
-      const targetVideo = event.target as HTMLVideoElement
-      log(`currentTime play: ${targetVideo.currentTime}`);
-      this._timeReadyPlay = this.checkTime(video);
+      log(`currentTime play: ${player.getCurrentTime()}`);
+      this._timeReadyPlay = this.checkTime();
 
       this.pauseIt();
     });
 
-    this.video.addEventListener('pause', (event) => {
-      showPlayerControls(true);
-      const targetVideo = event.target as HTMLVideoElement
-      log(`currentTime pause: ${targetVideo.currentTime}`);
-      this._timeReadyPause = this.checkTime(video);
-    });
+    this.player.addEventListener('pause', () => {
+      showPlayerControls(false);
+      log(`currentTime pause: ${player.getCurrentTime()}`);
+      this._timeReadyPause = this.checkTime();
+    });*/
   }
 
   // use to set server time, it should have the functionality described in the TODOs, with current and next calls
@@ -134,18 +128,15 @@ class VideoTimeManagement {
 
   private async firstCall() {
     log('firstCall');
-    this.video.pause();
+    this.player.pauseVideo();
     const time = await this.grabVideoTime();
 
     if (time) {
       log(`setting time to ${time}`);
       this.lastTime = time === 1 ? 0.0125 : time;
-      //this.video.currentTime = time === 1 ? 0.0125 : time;
-      const player = document.getElementById('movie_player');
-      player.seekTo(time === 1 ? 0.0125 : time)
-      //this.video.fastSeek(time === 1 ? 0.0125 : time);
+      this.player.seekTo(time === 1 ? 0.0125 : time, true);
     } else {
-      postTime(this.videoId, 1).catch(console.log);
+      this.pushVideoTime(1).catch(console.log);
     }
 
     this.watch(1000);
@@ -153,24 +144,24 @@ class VideoTimeManagement {
 
   private regularCall() {
     log('regularCall');
-    if (!this.video.paused && Math.abs(this.lastTime - this.video.currentTime) > 1.1) {
-      this.lastTime = this.video.currentTime;
+    const playing = this.player.getPlayerState() === 1;
+    const currentTime = this.player.getCurrentTime();
+
+    if (playing && Math.abs(this.lastTime - currentTime) > 1.1) {
+      this.lastTime = currentTime;
       log('video playing, recording time');
-      postTime(this.videoId, this.video.currentTime).catch(console.log);
+      this.pushVideoTime(currentTime).catch(console.log);
       this.watch(1500);
     } else {
       this.watch(5000);
     }
   }
 
-  private checkTime(video: HTMLVideoElement, shouldSet: boolean = true): boolean {
-    if (Math.abs(video.currentTime - this.lastTime) < 2 ) {
+  private checkTime(shouldSet: boolean = true): boolean {
+    if (Math.abs(this.player.getCurrentTime() - this.lastTime) < 2 ) {
       return true;
     } else if (!this.ready) {
-      //shouldSet && (video.currentTime = this.lastTime);
-      //shouldSet && this.video.fastSeek(this.lastTime);
-      const player = document.getElementById('movie_player');
-      shouldSet && player.seekTo(this.lastTime)
+      shouldSet && this.player.seekTo(this.lastTime, true);
       shouldSet && this.watch(50);
       return false;
     }
@@ -178,28 +169,28 @@ class VideoTimeManagement {
 
   private reset() {
     this.ready = false;
-    this._timeReadyPlay = false;
-    this._timeReadyPause = false;
-    this._timeReadyUpdate = false;
+    this._timeReady = false;
     this._didInteract = this.isMobile; // disable interact check on mobile
     this.lastTime = -1;
-    this.grabVideoTime = throttle(async () => {
-        log('grabbing time!')
-        return getTime(this.videoId);
-      },
+
+    this.grabVideoTime = throttle(async () => getTime(this.videoId),
       5000, { leading: true, trailing: false });
+
+    this.pushVideoTime = throttle(async (time: number) => postTime(this.videoId, time),
+      1000, { leading: true, trailing: false });
   }
 
   private pauseIt() {
-    if (!this.ready && this._timeReadyPause && this._timeReadyPlay && this._timeReadyUpdate && this._didInteract) {
+    if (!this.ready && this._timeReady && this._didInteract) {
       this.ready = true;
-      this.video.volume = 1;
+      this.player.unMute();
       log('READY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
     }
 
-    if (!this.ready && this.video) {
-      this.video.pause();
-      this.video.volume = 0;
+    if (!this.ready && this.player) {
+      this.player.pauseVideo();
+      this.player.mute();
+      showPlayerControls(true);
     }
   }
 

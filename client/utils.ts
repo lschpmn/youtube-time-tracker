@@ -1,7 +1,12 @@
+import { MediaPlayer } from './types';
 
 
 export function getVideo(): HTMLVideoElement {
   return document.querySelector('video');
+}
+
+export function getPlayer(): MediaPlayer {
+  return document.getElementById('movie_player') as any as MediaPlayer;
 }
 
 export function getVideoId(): string {

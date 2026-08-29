@@ -1,34 +1,38 @@
-// TODO: grab video time on load, and use the pause response for setting that time
-// TODO: have something going every second that should make sure video saved is the right one (for mobile)
-// TODO: this can also attempt to set the proper time over and over until the pause event confirms it's set
-// TODO: also maybe disable video playback until interacted with (on click or space bar pressed)
 // TODO: set times should go into some kind of queue so multiple can't pile up,
 // TODO: maybe only have current and next, and delete next if a new "next" comes.
 
-// more ideas now
-// TODO: regular watcher can have 'paused' and 'playing' modes
-// TODO: for paused, it checks every 5 seconds with time on server, and updates video time if there's a difference
-// TODO: for playing, it just records the video time
+// TODO: have separate 'play' and 'pause' firstLoad methods
+// TODO: both have to show the timing is correct before play is allowed, if one has the timing wrong, it resets both
 
-// TODO: block playing until interaction
+// TODO: maybe go back to firstCall mode if it's been paused for longer than 30 seconds
+
+// TODO: use player: https://developers.google.com/youtube/iframe_api_reference#Playback_status
 
 import { throttle } from 'lodash';
 import { getTime, postTime } from './endpoints';
 import { getVideo, getVideoId, log, showPlayerControls } from './utils';
 
 class VideoTimeManagement {
-  didInteract: boolean = false;
-  firstLoad: boolean = true;
   grabVideoTime: () => Promise<number>;
+  isMobile: boolean;
   lastTime: number = -1;
   video: HTMLVideoElement;
   videoId: string | null = null;
   timeout: NodeJS.Timeout = null;
 
+  ready: boolean = false;
+  _timeReadyPause: boolean = false;
+  _timeReadyPlay: boolean = false;
+  _timeReadyUpdate: boolean = false;
+  _didInteract: boolean = false;
+
   constructor() {
     document.onkeydown = ({ key }) => {
-      if (key === ' ') this.didInteract = true;
+      if (key === ' ') this._didInteract = true;
     };
+
+    this.isMobile = window.location.href.includes('m.youtube');
+    log(`hey is this mobile? ${this.isMobile}`);
   }
 
   watch(time: number) {
@@ -50,19 +54,15 @@ class VideoTimeManagement {
 
     if (videoId !== this.videoId) {
       this.videoId = videoId;
-      this.didInteract = false;
-      this.firstLoad = true;
-      this.lastTime = -1;
-      this.grabVideoTime = throttle(async () => getTime(videoId),
-                              5000, { leading: true, trailing: false });
+      this.reset();
     }
 
     if (video !== this.video) {
       this.attachToVideo();
     }
 
-    if (this.firstLoad) this.firstCall().catch(console.log);
-    else this.regularCalll();
+    if (!this.ready) this.firstCall().catch(console.log);
+    else this.regularCall();
   }
 
   private attachToVideo() {
@@ -72,35 +72,60 @@ class VideoTimeManagement {
     if (video === this.video) return;
 
     this.video = video;
-    this.video.pause();
+    this.video.click();
+    if (this.lastTime === -1) this.pauseIt();
 
-    const pauseIt = () => {
-      if (this.firstLoad || !this.didInteract) this.video.pause();
-    };
+    const timeSetting = (theTitle) => Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this.video, theTitle);
+    const timeGetting = () => Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').get.call(this.video);
+
+    // Override the setter for document.title to prevent further changes
+    Object.defineProperty(this.video, 'currentTime', {
+      get: function() {
+        return timeGetting();
+      },
+      set: (newTitle) => {
+        console.log(newTitle, 'this');
+        if (this.ready || +newTitle == this.lastTime) {
+          timeSetting(newTitle);
+          log('setting this time')
+        }
+      }
+    });
+
+
 
     // for mobile, the paused view that goes away
     // also happens on click :(
     this.video.addEventListener('blur', () => this.attachToVideo());
 
-    this.video.addEventListener('click', () => this.didInteract = true);
+    this.video.addEventListener('click', () => this._didInteract = true);
 
-    this.video.addEventListener('timeupdate', () => {
-      pauseIt();
-      if (!this.firstLoad) this.regularCalll();
+    this.video.addEventListener('seeked', (e) => console.log('seeked', e.target.currentTime));
+    this.video.addEventListener('seeking', (e) => console.log('seeking', e.target.currentTime));
+
+    this.video.addEventListener('timeupdate', (event) => {
+      const targetVideo = event.target as HTMLVideoElement
+      log(`currentTime update: ${targetVideo.currentTime}`);
+      this._timeReadyUpdate = this.checkTime(video, false);
+
+      this.pauseIt();
     });
 
     this.video.addEventListener('play', (event) => {
       showPlayerControls(false);
-      log(`currentTime: ${(event.target as HTMLVideoElement).currentTime}`);
-      if ((event.target as HTMLVideoElement).currentTime === this.lastTime) {
-        log('firstLoad = false');
-        this.firstLoad = false;
-      }
+      const targetVideo = event.target as HTMLVideoElement
+      log(`currentTime play: ${targetVideo.currentTime}`);
+      this._timeReadyPlay = this.checkTime(video);
 
-      pauseIt();
+      this.pauseIt();
     });
 
-    this.video.addEventListener('pause', () => showPlayerControls(true));
+    this.video.addEventListener('pause', (event) => {
+      showPlayerControls(true);
+      const targetVideo = event.target as HTMLVideoElement
+      log(`currentTime pause: ${targetVideo.currentTime}`);
+      this._timeReadyPause = this.checkTime(video);
+    });
   }
 
   // use to set server time, it should have the functionality described in the TODOs, with current and next calls
@@ -115,7 +140,10 @@ class VideoTimeManagement {
     if (time) {
       log(`setting time to ${time}`);
       this.lastTime = time === 1 ? 0.0125 : time;
-      this.video.currentTime = time === 1 ? 0.0125 : time;
+      //this.video.currentTime = time === 1 ? 0.0125 : time;
+      const player = document.getElementById('movie_player');
+      player.seekTo(time === 1 ? 0.0125 : time)
+      //this.video.fastSeek(time === 1 ? 0.0125 : time);
     } else {
       postTime(this.videoId, 1).catch(console.log);
     }
@@ -123,7 +151,7 @@ class VideoTimeManagement {
     this.watch(1000);
   }
 
-  private regularCalll() {
+  private regularCall() {
     log('regularCall');
     if (!this.video.paused && Math.abs(this.lastTime - this.video.currentTime) > 1.1) {
       this.lastTime = this.video.currentTime;
@@ -132,6 +160,46 @@ class VideoTimeManagement {
       this.watch(1500);
     } else {
       this.watch(5000);
+    }
+  }
+
+  private checkTime(video: HTMLVideoElement, shouldSet: boolean = true): boolean {
+    if (Math.abs(video.currentTime - this.lastTime) < 2 ) {
+      return true;
+    } else if (!this.ready) {
+      //shouldSet && (video.currentTime = this.lastTime);
+      //shouldSet && this.video.fastSeek(this.lastTime);
+      const player = document.getElementById('movie_player');
+      shouldSet && player.seekTo(this.lastTime)
+      shouldSet && this.watch(50);
+      return false;
+    }
+  }
+
+  private reset() {
+    this.ready = false;
+    this._timeReadyPlay = false;
+    this._timeReadyPause = false;
+    this._timeReadyUpdate = false;
+    this._didInteract = this.isMobile; // disable interact check on mobile
+    this.lastTime = -1;
+    this.grabVideoTime = throttle(async () => {
+        log('grabbing time!')
+        return getTime(this.videoId);
+      },
+      5000, { leading: true, trailing: false });
+  }
+
+  private pauseIt() {
+    if (!this.ready && this._timeReadyPause && this._timeReadyPlay && this._timeReadyUpdate && this._didInteract) {
+      this.ready = true;
+      this.video.volume = 1;
+      log('READY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+    }
+
+    if (!this.ready && this.video) {
+      this.video.pause();
+      this.video.volume = 0;
     }
   }
 

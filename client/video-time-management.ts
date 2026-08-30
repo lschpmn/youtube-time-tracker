@@ -1,8 +1,6 @@
 // TODO: set times should go into some kind of queue so multiple can't pile up,
 // TODO: maybe only have current and next, and delete next if a new "next" comes.
 
-// TODO: regular call should happen after 30 seconds, and grab video time and seek if it's different
-
 // V2
 
 import { throttle } from 'lodash';
@@ -56,7 +54,7 @@ class VideoTimeManagement {
     }
 
     if (!this.ready) this.firstCall().catch(console.log);
-    else this.regularCall();
+    else this.regularCall().catch(console.log);
   }
 
   private attachToPlayer() {
@@ -75,7 +73,7 @@ class VideoTimeManagement {
 
       if (this.ready) {
         if (state === 1 || state === 3) this.watch(1500);
-        else if (state === 2) this.watch(5000);
+        else if (state === 2) this.watch(5500);
         return;
       }
 
@@ -109,18 +107,29 @@ class VideoTimeManagement {
     this.watch(1000);
   }
 
-  private regularCall() {
+  private async regularCall() {
     log('regularCall');
     const playing = this.player.getPlayerState() === 1;
     const currentTime = this.player.getCurrentTime();
 
-    if (playing && Math.abs(this.lastTime - currentTime) > 1.1) {
+    if (playing) {
+      if (Math.abs(this.lastTime - currentTime) > 1.1) {
+        log(`video playing, recording time: ${currentTime}`);
+        this.pushVideoTime(currentTime).catch(console.log);
+      }
+
       this.lastTime = currentTime;
-      log('video playing, recording time');
-      this.pushVideoTime(currentTime).catch(console.log);
       this.watch(1500);
     } else {
-      this.watch(5000);
+      const time = await this.grabVideoTime();
+      if (Math.abs(currentTime - time) > 4) {
+        log('seeking to time');
+        this.player.seekTo(time, true);
+        this.lastTime = time;
+        this.watch(5501);
+      } else {
+        this.watch(30 * 1001);
+      }
     }
   }
 

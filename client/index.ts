@@ -1,6 +1,5 @@
 // TODO: better error handling so failed calls aren't spammed
 // TODO: probably add alert if calls fail
-// TODO: Put percent of currently watched video into title
 
 import { start } from './hide-watched-videos';
 import { getVideoId } from './utils';

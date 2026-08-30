@@ -1,8 +1,11 @@
 //
 
+// docs https://developers.google.com/youtube/iframe_api_reference
 export type MediaPlayer = {
 
   getCurrentTime: () => number,
+
+  getDuration: () => number,
 
   mute: () => void,
 
@@ -17,6 +20,8 @@ export type MediaPlayer = {
   unMute: () => void,
 
   addEventListener: (eventName: string, callback: (e: any) => void) => void;
+
+  onclick: () => void,
 
   /**
    * -1 – unstarted

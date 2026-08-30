@@ -1,7 +1,7 @@
 // TODO: set times should go into some kind of queue so multiple can't pile up,
 // TODO: maybe only have current and next, and delete next if a new "next" comes.
 
-// TODO: maybe go back to firstCall mode if it's been paused for longer than 30 seconds
+// TODO: regular call should happen after 30 seconds, and grab video time and seek if it's different
 
 // V2
 

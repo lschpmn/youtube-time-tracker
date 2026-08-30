@@ -1,82 +1,68 @@
-// TODO: Make the scroll event reset the time for checking watched videos
-// TODO: Move to class
-
+import { throttle } from 'lodash';
 import { getWatchedVideos } from './endpoints';
 
-const forbiddenUrls = ['/feed/history', '/results'];
-let timeout = null;
-let previousLength: number = 0;
-let newLength: number = 0;
+const FORBIDDEN_URLS = ['/feed/history', '/results', '/playlist'];
 
-// Public
+class HideWatchedVideos {
+  private timeout: NodeJS.Timeout = null;
 
-export function start(waitTime: number = 1000) {
-  if (timeout) clearTimeout(timeout);
-  timeout = setTimeout(async () => {
-    await hideWatchedVideos();
-
-    let newWaitTime: number;
-
-    if (previousLength === newLength) {
-      newWaitTime = waitTime + 1000;
-    } else {
-      newWaitTime = 1000;
-    }
-
-    previousLength = newLength;
-
-    start(Math.min(newWaitTime, 20 * 1000));
-  }, waitTime);
-}
-
-export function stop() {
-  clearTimeout(timeout);
-  timeout = null;
-}
-
-// Private
-
-async function hideWatchedVideos() {
-  if (forbiddenUrls.some(u => window.location.href.includes(u))) return;
-  const videoMap = getVideoIdMap();
-  const watchedVideoIds = await getWatchedVideos(Object.keys(videoMap));
-
-  for (let videoId of watchedVideoIds) {
-    // @ts-ignore
-    hideElement(videoMap[videoId]);
-  }
-}
-
-function getVideoIdMap(): { string: Element } {
-  const map = {} as { string: Element };
-  let videoElements = [...document.getElementsByTagName('ytd-rich-item-renderer')];
-
-  if (!videoElements.length) {
-    videoElements = [...document.getElementsByTagName('yt-lockup-view-model')];
+  constructor() {
+    document.addEventListener('scroll', throttle(() => {
+      this.watch(10);
+    }, 1500, { leading: true, trailing: true }));
   }
 
-  if (!videoElements.length) {
-    videoElements = [...document.getElementsByTagName('ytm-video-with-context-renderer')];
+  watch(waitTime: number) {
+    if (this.timeout) clearTimeout(this.timeout);
+    this.timeout = setTimeout(() => {
+      this.hideWatchedVideos().catch(console.log);
+    }, waitTime);
   }
 
-  newLength = videoElements.length;
+  private async hideWatchedVideos() {
+    if (FORBIDDEN_URLS.some(u => window.location.href.includes(u))) return;
+    const videoMap = this.getVideoIdMap();
+    const watchedVideoIds = await getWatchedVideos(Object.keys(videoMap));
 
-  for (let videoElement of videoElements) {
-    const link = Array(...videoElement.getElementsByTagName('a'))
-      .find(e => !!e.href)?.href;
-    if (!link) continue;
-
-    if (link.includes('t=')) {
+    for (let videoId of watchedVideoIds) {
       // @ts-ignore
-      hideElement(videoElement);
-    } else {
-      const url = new URL(link);
-      map[url.searchParams.get('v')] = videoElement;
+      hideElement(videoMap[videoId]);
     }
+
+    this.watch(30 * 1000);
   }
 
-  return map;
+  private getVideoIdMap(): { string: Element } {
+    const map = {} as { string: Element };
+    let videoElements = [...document.getElementsByTagName('ytd-rich-item-renderer')];
+
+    if (!videoElements.length) {
+      videoElements = [...document.getElementsByTagName('yt-lockup-view-model')];
+    }
+
+    if (!videoElements.length) {
+      videoElements = [...document.getElementsByTagName('ytm-video-with-context-renderer')];
+    }
+
+    for (let videoElement of videoElements) {
+      const link = Array(...videoElement.getElementsByTagName('a'))
+        .find(e => !!e.href)?.href;
+      if (!link) continue;
+
+      if (link.includes('t=')) {
+        // @ts-ignore
+        hideElement(videoElement);
+      } else {
+        const url = new URL(link);
+        map[url.searchParams.get('v')] = videoElement;
+      }
+    }
+
+    return map;
+  }
 }
+
+export default new HideWatchedVideos();
 
 // Util
 

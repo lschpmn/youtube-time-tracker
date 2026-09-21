@@ -9,15 +9,18 @@ import { MediaPlayer } from './types';
 import { getPlayer, getVideoId, log, showPlayerControls } from './utils';
 
 class VideoTimeManagement {
-  isMobile: boolean;
-  lastTime: number = -1;
-  player: MediaPlayer;
-  videoId: string | null = null;
-  timeout: NodeJS.Timeout = null;
+  private readonly isMobile: boolean;
+  private lastTime: number = -1;
+  private player: MediaPlayer;
+  private videoId: string | null = null;
+  private timeout: NodeJS.Timeout = null;
 
-  ready: boolean = false;
-  _timeReady: boolean = false;
-  _didInteract: boolean = false;
+  private nextGrab: () => Promise<void> | null = null;
+  private nextPush: () => Promise<void> | null = null;
+
+  private ready: boolean = false;
+  private _timeReady: boolean = false;
+  private _didInteract: boolean = false;
 
   constructor() {
     document.addEventListener('keydown', ({ key }) => {
@@ -73,12 +76,12 @@ class VideoTimeManagement {
 
       if (this.ready) {
         if (state === 1 || state === 3) this.watch(1500);
-        else if (state === 2) this.watch(5500);
+        else if (state === 2) this.watch(30 * 1000);
         return;
       }
 
-      if (currentTime === this.lastTime && [1, 2, 3].includes(state)) {
-        this._timeReady = true;
+      if ([1, 2, 3].includes(state)) {
+        this._timeReady = currentTime === this.lastTime;
       }
 
       if (this._timeReady && this._didInteract) {
@@ -109,10 +112,12 @@ class VideoTimeManagement {
 
   private async regularCall() {
     log('regularCall');
-    const playing = this.player.getPlayerState() === 1;
+    const playerState = this.player.getPlayerState()
     const currentTime = this.player.getCurrentTime();
+    const isPlaying = playerState === 1 || playerState === 3;
+    const isPaused = playerState === 2;
 
-    if (playing) {
+    if (isPlaying) {
       if (Math.abs(this.lastTime - currentTime) > 1.1) {
         log(`video playing, recording time: ${currentTime}`);
         this.pushVideoTime(currentTime).catch(console.log);
@@ -120,9 +125,9 @@ class VideoTimeManagement {
 
       this.lastTime = currentTime;
       this.watch(1500);
-    } else {
+    } else if (isPaused) {
       const time = await this.grabVideoTime();
-      if (Math.abs(currentTime - time) > 4) {
+      if (Math.abs(currentTime - time) > 1) {
         log('seeking to time');
         this.player.seekTo(time, true);
         this.lastTime = time;
@@ -147,7 +152,7 @@ class VideoTimeManagement {
 
   private pushVideoTime = throttle(async (time: number) => {
       return postTime(this.videoId, time);
-    }, 1000, { leading: true, trailing: false });
+    }, 1000, { leading: true, trailing: true });
 
 
   private writePercentToTitle = throttle(() => {

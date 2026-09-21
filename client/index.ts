@@ -1,6 +1,9 @@
 // TODO: better error handling so failed calls aren't spammed
 // TODO: probably add alert if calls fail
 
+// TODO: remove 'app=desktop' from url if playing video
+// TODO: Look into server side events
+
 import hideWatchedVideos from './hide-watched-videos';
 import { getVideoId } from './utils';
 import videoTimeManagement from './video-time-management';

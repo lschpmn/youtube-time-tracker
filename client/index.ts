@@ -5,7 +5,6 @@
 // TODO: Look into server side events
 
 import hideWatchedVideos from './hide-watched-videos';
-import { getVideoId } from './utils';
 import videoTimeManagement from './video-time-management';
 
 (function () {
@@ -17,15 +16,10 @@ import videoTimeManagement from './video-time-management';
   if (url.searchParams.get('t')) {
     url.searchParams.delete('t');
     window.location.href = url.href;
+  } else if (url.searchParams.get('v') && url.searchParams.get('app')) {
+    url.searchParams.delete('app');
+    window.location.href = url.href;
   }
-
-  const videoId = getVideoId();
-
-  // @ts-ignore
-  navigation.addEventListener('navigate', () => {
-    const newVideoId = getVideoId();
-    if (newVideoId !== videoId) window.location.reload();
-  });
 
 })();
 

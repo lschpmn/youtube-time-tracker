@@ -1,8 +1,3 @@
-// TODO: set times should go into some kind of queue so multiple can't pile up,
-// TODO: maybe only have current and next, and delete next if a new "next" comes.
-
-// V2
-
 import { throttle } from 'lodash';
 import { getTime, postTime } from './endpoints';
 import { MediaPlayer } from './types';
@@ -15,8 +10,8 @@ class VideoTimeManagement {
   private videoId: string | null = null;
   private timeout: NodeJS.Timeout = null;
 
-  private nextGrab: () => Promise<void> | null = null;
-  private nextPush: () => Promise<void> | null = null;
+  private getTimePromise: Promise<number> | null = null;
+  private setTimePromise: Promise<void> | null = null;
 
   private ready: boolean = false;
   private _timeReady: boolean = false;
@@ -75,8 +70,7 @@ class VideoTimeManagement {
       showPlayerControls(state !== 1);
 
       if (this.ready) {
-        if (state === 1 || state === 3) this.watch(1500);
-        else if (state === 2) this.watch(30 * 1000);
+        this.watch(1500);
         return;
       }
 
@@ -97,14 +91,14 @@ class VideoTimeManagement {
     log('firstCall');
     if (!this.isMobile) this.player.pauseVideo();
     this.player.onclick = () => this._didInteract = true;
-    const time = await this.grabVideoTime();
+    const time = await this.safeGrabVideoTime();
 
     if (time) {
       log(`setting time to ${time}`);
       this.lastTime = time === 1 ? 0.0125 : time;
       this.player.seekTo(time === 1 ? 0.0125 : time, true);
     } else {
-      this.pushVideoTime(1).catch(console.log);
+      this.safeSetVideoTime(1).catch(console.log);
     }
 
     this.watch(1000);
@@ -112,7 +106,7 @@ class VideoTimeManagement {
 
   private async regularCall() {
     log('regularCall');
-    const playerState = this.player.getPlayerState()
+    const playerState = this.player.getPlayerState();
     const currentTime = this.player.getCurrentTime();
     const isPlaying = playerState === 1 || playerState === 3;
     const isPaused = playerState === 2;
@@ -120,21 +114,20 @@ class VideoTimeManagement {
     if (isPlaying) {
       if (Math.abs(this.lastTime - currentTime) > 1.1) {
         log(`video playing, recording time: ${currentTime}`);
-        this.pushVideoTime(currentTime).catch(console.log);
+        this.safeSetVideoTime(currentTime).catch(console.log);
       }
 
       this.lastTime = currentTime;
       this.watch(1500);
     } else if (isPaused) {
-      const time = await this.grabVideoTime();
+      const time = await this.safeGrabVideoTime();
       if (Math.abs(currentTime - time) > 1) {
         log('seeking to time');
         this.player.seekTo(time, true);
         this.lastTime = time;
-        this.watch(5501);
-      } else {
-        this.watch(30 * 1001);
       }
+
+      this.watch(5501);
     }
   }
 
@@ -145,14 +138,23 @@ class VideoTimeManagement {
     this.lastTime = -1;
   }
 
-  private grabVideoTime = throttle(async () => {
-      return getTime(this.videoId);
-    }, 5000, { leading: true, trailing: false });
+  safeGrabVideoTime(): Promise<number> {
+    if (!this.getTimePromise) {
+      return this.getTimePromise = getTime(this.videoId)
+        .finally(() => this.getTimePromise = null);
+    } else {
+      return this.getTimePromise;
+    }
+  }
 
-
-  private pushVideoTime = throttle(async (time: number) => {
-      return postTime(this.videoId, time);
-    }, 1000, { leading: true, trailing: true });
+  safeSetVideoTime(time: number): Promise<void> {
+    if (!this.setTimePromise) {
+      return this.setTimePromise = postTime(this.videoId, time)
+        .finally(() => this.setTimePromise = null);
+    } else {
+      return this.setTimePromise;
+    }
+  }
 
 
   private writePercentToTitle = throttle(() => {
@@ -160,8 +162,8 @@ class VideoTimeManagement {
     const title = document.title.replace(/^\d?\d?\d%\s/, '');
     log(`percent: ${percent}`);
 
-    document.title = `${Math.round(percent)}% ${title}`
-  }, 2000, { trailing: true, leading: true});
+    document.title = `${Math.round(percent)}% ${title}`;
+  }, 2000, { trailing: true, leading: true });
 
   // use to set server time, it should have the functionality described in the TODOs, with current and next calls
   private serverSetTime() {

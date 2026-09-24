@@ -62,7 +62,6 @@ class VideoTimeManagement {
     if (player === this.player) return;
 
     this.player = player;
-    if (this.lastTime === -1) this.player.mute();
 
     this.player.addEventListener('onStateChange', (state: number) => {
       const currentTime = this.player.getCurrentTime();
@@ -70,7 +69,7 @@ class VideoTimeManagement {
       showPlayerControls(state !== 1);
 
       if (this.ready) {
-        this.watch(1500);
+        this.watch(900);
         return;
       }
 
@@ -90,6 +89,7 @@ class VideoTimeManagement {
   private async firstCall() {
     log('firstCall');
     if (!this.isMobile) this.player.pauseVideo();
+    this.player.mute();
     this.player.onclick = () => this._didInteract = true;
     const time = await this.safeGrabVideoTime();
 
@@ -112,13 +112,12 @@ class VideoTimeManagement {
     const isPaused = playerState === 2;
 
     if (isPlaying) {
-      if (Math.abs(this.lastTime - currentTime) > 1.1) {
+      if (Math.abs(this.lastTime - currentTime) > 0.5) {
         log(`video playing, recording time: ${currentTime}`);
         this.safeSetVideoTime(currentTime).catch(console.log);
+        this.lastTime = currentTime;
       }
-
-      this.lastTime = currentTime;
-      this.watch(1500);
+      this.watch(901);
     } else if (isPaused) {
       const time = await this.safeGrabVideoTime();
       if (Math.abs(currentTime - time) > 1) {
@@ -127,7 +126,7 @@ class VideoTimeManagement {
         this.lastTime = time;
       }
 
-      this.watch(5501);
+      this.watch(2000);
     }
   }
 
@@ -164,10 +163,6 @@ class VideoTimeManagement {
 
     document.title = `${Math.round(percent)}% ${title}`;
   }, 2000, { trailing: true, leading: true });
-
-  // use to set server time, it should have the functionality described in the TODOs, with current and next calls
-  private serverSetTime() {
-  }
 }
 
 export default new VideoTimeManagement();

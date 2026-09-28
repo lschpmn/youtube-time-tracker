@@ -9,6 +9,28 @@ const { PORT } = getCommandLineArguments();
 const app = express();
 const server = createHttpServer(app);
 
+import { Server } from "socket.io";
+
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+  }
+});
+
+io.on("connection", (socket) => {
+  // ...
+  console.log('connected');
+
+  const a = setInterval(() => socket.write('hi from socket.io!'), 2000);
+
+  socket.on('disconnect', () => {
+    console.log('disconnected');
+    clearInterval(a);
+  });
+
+
+});
+
 app.use(cors());
 app.use(express.json());
 

@@ -2,7 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { createServer as createHttpServer } from 'http';
 import { getCommandLineArguments, log } from './lib/utils';
-import timeRouter from './time-router';
+import timeRouter, { timeRouterSocketConnection } from './time-router';
 
 const { PORT } = getCommandLineArguments();
 
@@ -18,17 +18,12 @@ const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  // ...
-  console.log('connected');
-
-  const a = setInterval(() => socket.write('hi from socket.io!'), 2000);
+  log(`new connection: ${socket.id}`);
+  timeRouterSocketConnection(socket, io);
 
   socket.on('disconnect', () => {
-    console.log('disconnected');
-    clearInterval(a);
+    log(`disconnected: ${socket.id}`);
   });
-
-
 });
 
 app.use(cors());

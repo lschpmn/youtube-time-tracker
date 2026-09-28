@@ -1,5 +1,6 @@
 import { throttle } from 'lodash';
-import { getTime, postTime } from './endpoints';
+import { io, Socket } from 'socket.io-client';
+import { host } from './endpoints';
 import { MediaPlayer } from './types';
 import { getPlayer, getVideoId, log, showPlayerControls } from './utils';
 
@@ -7,11 +8,10 @@ class VideoTimeManagement {
   private readonly isMobile: boolean;
   private lastTime: number = -1;
   private player: MediaPlayer;
+  private socket: Socket;
   private videoId: string | null = null;
-  private timeout: NodeJS.Timeout = null;
 
-  private getTimePromise: Promise<number> | null = null;
-  private setTimePromise: Promise<void> | null = null;
+  private heartbeatPromise: Promise<void> | null = null;
 
   private ready: boolean = false;
   private _timeReady: boolean = false;
@@ -25,17 +25,23 @@ class VideoTimeManagement {
     this.isMobile = window.location.href.includes('m.youtube');
   }
 
-  watch(time: number) {
-    log(`watch for ${time}`);
-    clearTimeout(this.timeout);
-    this.timeout = setTimeout(() => {
+  heartbeat() {
+    if (!this.heartbeatPromise) {
+      log('start heartbeat');
 
-      this.repeatingCall();
-      this.writePercentToTitle();
-    }, time);
+      this.heartbeatPromise = this.repeatingCall()
+        .finally(() => {
+          log('heartbeat done, resting');
+
+          setTimeout(() => {
+            this.heartbeatPromise = null;
+            this.heartbeat();
+          }, 1000);
+        });
+    }
   }
 
-  private repeatingCall() {
+  private async repeatingCall() {
     log('repeatingCall');
     const player = getPlayer();
     const videoId = getVideoId();
@@ -48,33 +54,35 @@ class VideoTimeManagement {
     }
 
     if (player !== this.player) {
-      this.attachToPlayer();
+      this.setupAttachments();
     }
 
-    if (!this.ready) this.firstCall().catch(console.log);
-    else this.regularCall().catch(console.log);
+    if (!this.ready) await this.firstCall();
+    else await this.regularCall();
+
+    this.writePercentToTitle();
   }
 
-  private attachToPlayer() {
+  private setupAttachments() {
     log('attachToVideo');
     const player = getPlayer();
-    if (!player) return this.watch(33);
+    if (!player) return;
     if (player === this.player) return;
 
     this.player = player;
 
     this.player.addEventListener('onStateChange', (state: number) => {
       const currentTime = this.player.getCurrentTime();
+      const isPlaying = state === 1 || state === 3;
       log(`onStateChange, state: ${state}, time: ${currentTime}`);
       showPlayerControls(state !== 1);
 
       if (this.ready) {
-        this.watch(900);
         return;
       }
 
       if ([1, 2, 3].includes(state)) {
-        this._timeReady = currentTime === this.lastTime;
+        this._timeReady = Math.abs(currentTime - this.lastTime) < 1;
       }
 
       if (this._timeReady && this._didInteract) {
@@ -82,8 +90,17 @@ class VideoTimeManagement {
         this.player.unMute();
       }
 
-      this.watch(10);
+      if (!this.ready && isPlaying) this.player.pauseVideo();
     });
+
+    // SOCKET.IO
+
+    this.socket = io(host);
+
+    this.socket.on('connect', () => log('socket connected'));
+    this.socket.on('disconnect', () => log('socket disconnected'));
+
+    this.socket.on('time-update', (id: string, time: number) => this.incomingUpdate(id, time));
   }
 
   private async firstCall() {
@@ -91,43 +108,35 @@ class VideoTimeManagement {
     if (!this.isMobile) this.player.pauseVideo();
     this.player.mute();
     this.player.onclick = () => this._didInteract = true;
-    const time = await this.safeGrabVideoTime();
 
-    if (time) {
-      log(`setting time to ${time}`);
-      this.lastTime = time === 1 ? 0.0125 : time;
-      this.player.seekTo(time === 1 ? 0.0125 : time, true);
-    } else {
-      this.safeSetVideoTime(1).catch(console.log);
+    if (this.lastTime === -1) {
+      const time = await this.socket.emitWithAck('get', this.videoId);
+      if (!time) {
+        this.socket.emit('set', this.videoId, 0.01);
+      }
+
+      this.lastTime = time || 0.01;
     }
 
-    this.watch(1000);
+    this.player.seekTo(this.lastTime, true);
   }
 
   private async regularCall() {
     log('regularCall');
-    const playerState = this.player.getPlayerState();
     const currentTime = this.player.getCurrentTime();
-    const isPlaying = playerState === 1 || playerState === 3;
-    const isPaused = playerState === 2;
 
-    if (isPlaying) {
-      if (Math.abs(this.lastTime - currentTime) > 0.5) {
-        log(`video playing, recording time: ${currentTime}`);
-        this.safeSetVideoTime(currentTime).catch(console.log);
-        this.lastTime = currentTime;
-      }
-      this.watch(901);
-    } else if (isPaused) {
-      const time = await this.safeGrabVideoTime();
-      if (Math.abs(currentTime - time) > 1) {
-        log('seeking to time');
-        this.player.seekTo(time, true);
-        this.lastTime = time;
-      }
-
-      this.watch(2000);
+    if (this.isPlaying()) {
+      log(`video playing, recording time: ${currentTime}`);
+      this.socket.emit('set', this.videoId, currentTime);
+      this.lastTime = currentTime;
     }
+  }
+
+  private incomingUpdate(id: string, time: number) {
+    if (id !== this.videoId) return;
+    log(`setting time to ${time}`);
+    this.lastTime = time;
+    if (!this.isPlaying()) this.player.seekTo(this.lastTime, true);
   }
 
   private reset() {
@@ -137,24 +146,10 @@ class VideoTimeManagement {
     this.lastTime = -1;
   }
 
-  safeGrabVideoTime(): Promise<number> {
-    if (!this.getTimePromise) {
-      return this.getTimePromise = getTime(this.videoId)
-        .finally(() => this.getTimePromise = null);
-    } else {
-      return this.getTimePromise;
-    }
-  }
-
-  safeSetVideoTime(time: number): Promise<void> {
-    if (!this.setTimePromise) {
-      return this.setTimePromise = postTime(this.videoId, time)
-        .finally(() => this.setTimePromise = null);
-    } else {
-      return this.setTimePromise;
-    }
-  }
-
+  private isPlaying = () => {
+    const playerState = this.player.getPlayerState();
+    return playerState === 1 || playerState === 3;
+  };
 
   private writePercentToTitle = throttle(() => {
     const percent = this.player.getCurrentTime() / this.player.getDuration() * 100;

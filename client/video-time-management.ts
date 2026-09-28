@@ -98,7 +98,10 @@ class VideoTimeManagement {
     this.socket = io(host);
 
     this.socket.on('connect', () => log('socket connected'));
-    this.socket.on('disconnect', () => log('socket disconnected'));
+    this.socket.on('disconnect', () => {
+      log('socket disconnected');
+      this.reset();
+    });
 
     this.socket.on('time-update', (id: string, time: number) => this.incomingUpdate(id, time));
   }

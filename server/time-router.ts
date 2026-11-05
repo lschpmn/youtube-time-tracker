@@ -53,4 +53,17 @@ router.post('/times', (req, res) => {
   res.status(200).send(returnIds);
 });
 
+router.post('/video-times', (req, res) => {
+  const ids: string[] = req.body;
+  log('got ids for video time ' + JSON.stringify(ids));
+  const videoTimes = {};
+  ids?.forEach(id => {
+    const time = db.getTime(id);
+    if (time) videoTimes[id] = time;
+  });
+  log('sending back video times: ' + JSON.stringify(videoTimes));
+
+  res.status(200).send(videoTimes);
+});
+
 export default router;

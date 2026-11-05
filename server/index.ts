@@ -1,3 +1,8 @@
+// TODO: Update extension to check times of all youtube tabs
+// TODO: Need to add bulk endpoint to support this
+// TODO: Extension should only update known videos
+// TODO: Extension should only update when the percent is different
+
 import cors from 'cors';
 import express from 'express';
 import { createServer as createHttpServer } from 'http';

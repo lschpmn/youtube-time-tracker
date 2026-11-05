@@ -1,3 +1,6 @@
+// TODO: When seeking it sometimes resets to the previous position, need to fix
+// TODO: Disconnect detection should wait before stopping video
+
 import { throttle } from 'lodash';
 import { io, Socket } from 'socket.io-client';
 import { host } from './endpoints';
@@ -82,7 +85,7 @@ class VideoTimeManagement {
       }
 
       if ([1, 2, 3].includes(state)) {
-        this._timeReady = Math.abs(currentTime - this.lastTime) < 1;
+        this._timeReady = Math.abs(currentTime - this.lastTime) < 0.1;
       }
 
       if (this._timeReady && this._didInteract) {
@@ -126,9 +129,9 @@ class VideoTimeManagement {
 
   private async regularCall() {
     log('regularCall');
-    const currentTime = this.player.getCurrentTime();
 
     if (this.isPlaying()) {
+      const currentTime = this.player.getCurrentTime();
       log(`video playing, recording time: ${currentTime}`);
       this.socket.emit('set', this.videoId, currentTime);
       this.lastTime = currentTime;
@@ -158,6 +161,8 @@ class VideoTimeManagement {
     const percent = this.player.getCurrentTime() / this.player.getDuration() * 100;
     const title = document.title.replace(/^\d?\d?\d%\s/, '');
     log(`percent: ${percent}`);
+
+    if (isNaN(percent)) return;
 
     document.title = `${Math.round(percent)}% ${title}`;
   }, 2000, { trailing: true, leading: true });

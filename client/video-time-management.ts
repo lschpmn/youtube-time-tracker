@@ -1,24 +1,20 @@
-// TODO: When seeking it sometimes resets to the previous position, need to fix
-// TODO: Disconnect detection should wait before stopping video
-
 import { throttle } from 'lodash';
 import { io, Socket } from 'socket.io-client';
 import { host } from './endpoints';
 import { MediaPlayer } from './types';
-import { getPlayer, getVideoId, log, showPlayerControls } from './utils';
+import { getPlayer, getRemainingTime, getVideoId, log, showPlayerControls } from './utils';
 
 class VideoTimeManagement {
   private readonly isMobile: boolean;
+  private disconnectTimeout: NodeJS.Timeout | null;
+  private heartbeatPromise: Promise<void> | null = null;
   private lastTime: number = -1;
   private player: MediaPlayer;
+  private ready: boolean = false;
   private socket: Socket;
   private videoId: string | null = null;
-
-  private heartbeatPromise: Promise<void> | null = null;
-
-  private ready: boolean = false;
-  private _timeReady: boolean = false;
   private _didInteract: boolean = false;
+  private _timeReady: boolean = false;
 
   constructor() {
     document.addEventListener('keydown', ({ key }) => {
@@ -100,10 +96,19 @@ class VideoTimeManagement {
 
     this.socket = io(host);
 
-    this.socket.on('connect', () => log('socket connected'));
+    this.socket.on('connect', () => {
+      log('socket connected');
+      if (this.disconnectTimeout) {
+        clearTimeout(this.disconnectTimeout);
+        this.disconnectTimeout = null;
+      }
+    });
+
     this.socket.on('disconnect', () => {
-      log('socket disconnected');
-      this.reset();
+      this.disconnectTimeout = setTimeout(() => {
+        log('socket disconnected');
+        this.reset();
+      }, 5000);
     });
 
     this.socket.on('time-update', (id: string, time: number) => this.incomingUpdate(id, time));
@@ -158,13 +163,15 @@ class VideoTimeManagement {
   };
 
   private writePercentToTitle = throttle(() => {
-    const percent = this.player.getCurrentTime() / this.player.getDuration() * 100;
-    const title = document.title.replace(/^\d?\d?\d%\s/, '');
+    const duration = this.player.getDuration();
+    if (this.lastTime < 0 || duration === 0) return;
+    const percent = this.lastTime / duration * 100;
+    const title = document.title.replace(/^\d?\d?\d%\d+[HMS]\s/, '');
     log(`percent: ${percent}`);
 
     if (isNaN(percent)) return;
 
-    document.title = `${Math.round(percent)}% ${title}`;
+    document.title = `${Math.round(percent)}%${getRemainingTime(this.lastTime, duration)} ${title}`;
   }, 2000, { trailing: true, leading: true });
 }
 

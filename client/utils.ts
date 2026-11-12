@@ -9,6 +9,18 @@ export function getPlayer(): MediaPlayer {
   return document.getElementById('movie_player') as any as MediaPlayer;
 }
 
+export function getRemainingTime(currentTime: number, duration: number) {
+  const remaining = duration - currentTime;
+
+  if (remaining > 3600) {
+    return `${Math.floor(remaining / 3600)}H`;
+  } else if (remaining > 60) {
+    return `${Math.floor(remaining / 60)}M`;
+  } else {
+    return `${Math.floor(remaining )}S`;
+  }
+}
+
 export function getVideoId(): string {
   const url = new URL(window.location.href);
   return url.searchParams.get('v');

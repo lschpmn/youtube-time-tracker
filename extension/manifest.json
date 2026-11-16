@@ -1,0 +1,17 @@
+{
+  "manifest_version": 2,
+  "name": "Unload YouTube Tabs",
+  "version": "1.0",
+  "description": "Unloads YouTube video tabs after being unfocused for 30 minutes.",
+  "permissions": [
+    "tabs",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_title": "Unload YouTube Tabs"
+  }
+}

@@ -12,10 +12,10 @@ export function timeRouterSocketConnection(socket: Socket, io: Server) {
     callback(time);
   });
 
-  socket.on('set', (id: string, time: number) => {
+  socket.on('set', (id: string, time: number, duration: number) => {
     if (time) {
       log(`set video id: ${id} - time(sec): ${time}`);
-      db.setTime(id, time);
+      db.setTime(id, time, duration);
       io.emit('time-update', id, time);
     } else {
       log(`unable to set video id: ${id}, time undefined`);
@@ -36,7 +36,7 @@ router.post('/time/:id', (req, res) => {
   const time = req.body.time;
   if (time) {
     log(`set video id: ${id} - time(sec): ${time}`, req);
-    db.setTime(id, +req.body.time);
+    db.setTime(id, +req.body.time, +req.body.duration);
   } else {
     log(`unable to set video id: ${id}, time undefined`, req);
   }

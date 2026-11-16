@@ -27,8 +27,9 @@ class DB {
 
   getTime = (id: string) => this.data.videoTimes[id]?.time;
 
-  setTime = (id: string, time: number) => {
+  setTime = (id: string, time: number, duration: number) => {
     this.data.videoTimes[id] = {
+      duration,
       time,
       timestamp: Date.now(),
     };

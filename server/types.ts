@@ -5,6 +5,7 @@ export type DbSchema = {
 
 export type VideoTimes = {
   [id: string]: {
+    duration: number | null,
     time: number,
     timestamp: number,
   },

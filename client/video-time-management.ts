@@ -13,6 +13,7 @@ class VideoTimeManagement {
   private ready: boolean = false;
   private socket: Socket;
   private videoId: string | null = null;
+  private videoDuration: number | null = null;
   private _didInteract: boolean = false;
   private _timeReady: boolean = false;
 
@@ -84,7 +85,9 @@ class VideoTimeManagement {
         this._timeReady = Math.abs(currentTime - this.lastTime) < 0.1;
       }
 
-      if (this._timeReady && this._didInteract) {
+      if (!this.videoDuration) this.videoDuration = this.player.getDuration();
+
+      if (this._timeReady && this._didInteract && this.videoDuration) {
         this.ready = true;
         this.player.unMute();
       }
@@ -122,14 +125,19 @@ class VideoTimeManagement {
 
     if (this.lastTime === -1) {
       const time = await this.socket.emitWithAck('get', this.videoId);
-      if (!time) {
-        this.socket.emit('set', this.videoId, 0.01);
-      }
+      const duration = this.player.getDuration();
 
-      this.lastTime = time || 0.01;
+      if (duration) {
+        this.videoDuration = duration;
+        if (!time) {
+          this.socket.emit('set', this.videoId, 0.01, duration);
+        }
+
+        this.lastTime = time || 0.01;
+      }
     }
 
-    this.player.seekTo(this.lastTime, true);
+    this.player.seekTo(Math.max(this.lastTime, 0.01), true);
   }
 
   private async regularCall() {
@@ -138,7 +146,7 @@ class VideoTimeManagement {
     if (this.isPlaying()) {
       const currentTime = this.player.getCurrentTime();
       log(`video playing, recording time: ${currentTime}`);
-      this.socket.emit('set', this.videoId, currentTime);
+      this.socket.emit('set', this.videoId, currentTime, this.videoDuration);
       this.lastTime = currentTime;
     }
   }
@@ -155,6 +163,7 @@ class VideoTimeManagement {
     this._timeReady = false;
     this._didInteract = this.isMobile; // disable interact check on mobile
     this.lastTime = -1;
+    this.videoDuration = null;
   }
 
   private isPlaying = () => {

@@ -2,7 +2,7 @@
 
 const UNLOAD_TIMEOUT = 30 * 60 * 1000;
 const REFRESH_TIME = 15 * 60 * 1000;
-const HOST = 'http//:127.0.0.1';
+//const HOST = 'http://127.0.0.1:50300';
 
 async function main() {
   /** @type {Tab[]} */
@@ -15,9 +15,7 @@ async function main() {
       console.log(`Will unload - ${tab.title}`)
       return tab.id;
     });
-  if (oldTabs.length) browser.tabs.discard(oldTabs);
-
-  console.log('tabs', tabs);
+  if (oldTabs.length) await browser.tabs.discard(oldTabs);
 
   const videoIds = tabs
     .map(tab => {
@@ -25,9 +23,29 @@ async function main() {
       return url.searchParams.get('v');
     })
     .filter(Boolean);
-  console.log('videoIds', videoIds);
-  const videoTimes = await getTabTimes(videoIds);
-  console.log('videoTimes', videoTimes);
+
+  const videoObjs = await getTabTimes(videoIds);
+
+  for (let [id, videoObj] of Object.entries(videoObjs)) {
+    if (!videoObj.time || !videoObj.duration) continue;
+    console.log(id, videoObj);
+    console.log(`${
+      Math.round(videoObj.time / videoObj.duration)
+    }%${getRemainingTime(videoObj.time, videoObj.duration)}`)
+  }
+
+  const sleepyTabs = (await browser.tabs.query({ discarded: true }))
+    .sort((a, b) => a.lastAccessed - b.lastAccessed);
+  console.log(sleepyTabs);
+  console.log(new Date(sleepyTabs[0].lastAccessed));
+  console.log(new Date(sleepyTabs[sleepyTabs.length -1].lastAccessed));
+
+  console.log(sleepyTabs[0])
+  console.log(sleepyTabs[0].url)
+  browser.tabs.reload(sleepyTabs[0].id)
+  /*await browser.tabs.executeScript(sleepyTabs[0].id, {
+    code: 'document.title = "hey buddy!"'
+  });*/
 }
 
 main().catch(console.log);
@@ -49,6 +67,18 @@ async function getTabTimes(tabIds) {
   });
 
   return await response.json();
+}
+
+function getRemainingTime(currentTime, duration) {
+  const remaining = duration - currentTime;
+
+  if (remaining > 3600) {
+    return `${Math.floor(remaining / 3600)}H`;
+  } else if (remaining > 60) {
+    return `${Math.floor(remaining / 60)}M`;
+  } else {
+    return `${Math.floor(remaining )}S`;
+  }
 }
 
 /**

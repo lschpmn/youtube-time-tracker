@@ -123,6 +123,9 @@ class VideoTimeManagement {
     this.player.mute();
     this.player.onclick = () => this._didInteract = true;
 
+    // TODO: grab video object and check both time and duration
+    // TODO:    if either are empty, set the time and duration
+
     if (this.lastTime === -1) {
       const time = await this.socket.emitWithAck('get', this.videoId);
       const duration = this.player.getDuration();

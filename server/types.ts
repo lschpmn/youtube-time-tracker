@@ -4,9 +4,11 @@ export type DbSchema = {
 };
 
 export type VideoTimes = {
-  [id: string]: {
-    duration: number | null,
-    time: number,
-    timestamp: number,
-  },
+  [id: string]: VideoObj,
+};
+
+export type VideoObj = {
+  duration: number | null,
+  time: number,
+  timestamp: number,
 };

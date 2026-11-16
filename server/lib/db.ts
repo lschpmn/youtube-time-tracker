@@ -1,7 +1,7 @@
 import { exists, read, writeAsync } from 'fs-jetpack';
 import { throttle } from 'lodash';
 import { join } from 'path';
-import { DbSchema } from '../types';
+import { DbSchema, VideoObj } from '../types';
 
 const DB_PATH = join(__dirname, '../..', 'bin', 'db.json');
 
@@ -26,6 +26,10 @@ class DB {
   };
 
   getTime = (id: string) => this.data.videoTimes[id]?.time;
+
+  getVideObj = (id: string): VideoObj => {
+    return this.data.videoTimes[id];
+  };
 
   setTime = (id: string, time: number, duration: number) => {
     this.data.videoTimes[id] = {

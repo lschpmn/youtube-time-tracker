@@ -54,16 +54,16 @@ router.post('/times', (req, res) => {
 });
 
 router.post('/video-times', (req, res) => {
-  const ids: string[] = req.body;
+  const ids: string[] = req.body || [];
   log('got ids for video time ' + JSON.stringify(ids));
-  const videoTimes = {};
-  ids?.forEach(id => {
-    const time = db.getTime(id);
-    if (time) videoTimes[id] = time;
+  const videoObjs = {};
+  ids.forEach(id => {
+    const videoObj = db.getVideObj(id);
+    if (videoObj) videoObjs[id] = videoObj;
   });
-  log('sending back video times: ' + JSON.stringify(videoTimes));
+  log(`sending back ${Object.keys(videoObjs).length} video times`);
 
-  res.status(200).send(videoTimes);
+  res.status(200).send(videoObjs);
 });
 
 export default router;

@@ -5,6 +5,7 @@
   "description": "Unloads YouTube video tabs after being unfocused for 30 minutes.",
   "permissions": [
     "tabs",
+    "<all_urls>",
     "http://127.0.0.1/*"
   ],
   "background": {

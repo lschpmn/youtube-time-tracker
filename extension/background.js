@@ -1,10 +1,10 @@
 const UNLOAD_TIMEOUT = 30 * 60 * 1000;
-const REFRESH_TIME = 5 * 60 * 1000;
+const REFRESH_TIME = 15 * 60 * 1000;
 const MAX_RELOADS = 3;
 
 const HOST = 'http://127.0.0.1:50300';
 
-const percentRegex = /^(\d+)%/;
+const percentRegex = /^(\d+)%\d+[HMS]\s/;
 
 async function main() {
   /** @type {Tab[]} */
@@ -58,7 +58,7 @@ async function main() {
     const percentDiff = percentServer - percentTitle;
 
     if (percentDiff > 10) {
-      console.log('reload- percent diff', tab.title);
+      console.log('reload- percent diff', percentDiff, tab.title);
       reloadTab(tab.id, count);
       count++;
     }

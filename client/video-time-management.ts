@@ -176,7 +176,7 @@ class VideoTimeManagement {
     const duration = this.player.getDuration();
     if (this.lastTime < 0 || duration === 0) return;
     const percent = this.lastTime / duration * 100;
-    const title = document.title.replace(/^\d?\d?\d%\d+[HMS]\s/, '');
+    const title = document.title.replace(/^\d+%\d+[HMS]\s/, '');
     log(`percent: ${percent}`);
 
     if (isNaN(percent)) return;

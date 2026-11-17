@@ -132,11 +132,9 @@ class VideoTimeManagement {
 
       if (duration) {
         this.videoDuration = duration;
-        if (!time) {
-          this.socket.emit('set', this.videoId, 0.01, duration);
-        }
-
         this.lastTime = time || 0.01;
+
+        this.socket.emit('set', this.videoId, this.lastTime, duration);
       }
     }
 

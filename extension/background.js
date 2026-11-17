@@ -1,8 +1,10 @@
-// TODO: In the middle of adding times to tabs automatically
-
 const UNLOAD_TIMEOUT = 30 * 60 * 1000;
-const REFRESH_TIME = 15 * 60 * 1000;
-//const HOST = 'http://127.0.0.1:50300';
+const REFRESH_TIME = 5 * 60 * 1000;
+const MAX_RELOADS = 3;
+
+const HOST = 'http://127.0.0.1:50300';
+
+const percentRegex = /^(\d+)%/;
 
 async function main() {
   /** @type {Tab[]} */
@@ -26,26 +28,41 @@ async function main() {
 
   const videoObjs = await getTabTimes(videoIds);
 
-  for (let [id, videoObj] of Object.entries(videoObjs)) {
-    if (!videoObj.time || !videoObj.duration) continue;
-    console.log(id, videoObj);
-    console.log(`${
-      Math.round(videoObj.time / videoObj.duration)
-    }%${getRemainingTime(videoObj.time, videoObj.duration)}`)
-  }
+  tabs.sort((a, b) => b.lastAccessed - a.lastAccessed);
+  let count = 0;
 
-  const sleepyTabs = (await browser.tabs.query({ discarded: true }))
-    .sort((a, b) => a.lastAccessed - b.lastAccessed);
-  console.log(sleepyTabs);
-  console.log(new Date(sleepyTabs[0].lastAccessed));
-  console.log(new Date(sleepyTabs[sleepyTabs.length -1].lastAccessed));
+  tabs.forEach(tab => {
+    if (!tab.discarded || count >= MAX_RELOADS) return
 
-  console.log(sleepyTabs[0])
-  console.log(sleepyTabs[0].url)
-  browser.tabs.reload(sleepyTabs[0].id)
-  /*await browser.tabs.executeScript(sleepyTabs[0].id, {
-    code: 'document.title = "hey buddy!"'
-  });*/
+    const result = percentRegex.exec(tab.title);
+
+    if (!result) {
+      console.log('reload- title', tab.title);
+      reloadTab(tab.id, count);
+      count++;
+      return;
+    }
+
+    const id = (new URL(tab.url)).searchParams.get('v');
+    const videoObj = videoObjs[id];
+
+    if (!videoObj || !videoObj?.duration) {
+      console.log('reload- duration', tab.title);
+      reloadTab(tab.id, count);
+      count++;
+      return;
+    }
+
+    const percentTitle = +result[1];
+    const percentServer = videoObj.time / videoObj.duration * 100;
+    const percentDiff = percentServer - percentTitle;
+
+    if (percentDiff > 10) {
+      console.log('reload- percent diff', tab.title);
+      reloadTab(tab.id, count);
+      count++;
+    }
+  });
 }
 
 main().catch(console.log);
@@ -69,16 +86,11 @@ async function getTabTimes(tabIds) {
   return await response.json();
 }
 
-function getRemainingTime(currentTime, duration) {
-  const remaining = duration - currentTime;
-
-  if (remaining > 3600) {
-    return `${Math.floor(remaining / 3600)}H`;
-  } else if (remaining > 60) {
-    return `${Math.floor(remaining / 60)}M`;
-  } else {
-    return `${Math.floor(remaining )}S`;
-  }
+function reloadTab(tabId, count) {
+  setTimeout(
+    () => browser.tabs.reload(tabId),
+    (count + 1) * 1000
+  );
 }
 
 /**
